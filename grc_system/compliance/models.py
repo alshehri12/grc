@@ -108,7 +108,7 @@ class Control(models.Model):
     title = models.CharField(_('Control Title'), max_length=500)
     title_ar = models.CharField(_('عنوان الضابط'), max_length=500, blank=True)
     
-    description = models.TextField(_('Control Description'))
+    description = models.TextField(_('Control Description'), blank=True)
     description_ar = models.TextField(_('وصف الضابط'), blank=True)
     
     # Control details
@@ -285,9 +285,9 @@ class Audit(models.Model):
     status = models.CharField(_('Status'), max_length=20, choices=STATUS_CHOICES, default='planned')
     
     # Scope
-    scope = models.TextField(_('Audit Scope'))
+    scope = models.TextField(_('Audit Scope'), blank=True)
     scope_ar = models.TextField(_('نطاق التدقيق'), blank=True)
-    objectives = models.TextField(_('Audit Objectives'))
+    objectives = models.TextField(_('Audit Objectives'), blank=True)
     objectives_ar = models.TextField(_('أهداف التدقيق'), blank=True)
     
     # Frameworks/controls being audited
@@ -409,7 +409,7 @@ class AuditFinding(models.Model):
     status = models.CharField(_('Status'), max_length=20, choices=STATUS_CHOICES, default='open')
     
     # Details
-    description = models.TextField(_('Finding Description'))
+    description = models.TextField(_('Finding Description'), blank=True)
     description_ar = models.TextField(_('وصف النتيجة'), blank=True)
     
     # Reference
@@ -431,7 +431,7 @@ class AuditFinding(models.Model):
     risk_rating = models.CharField(_('Risk Rating'), max_length=20, blank=True)
     
     # Recommendation
-    recommendation = models.TextField(_('Recommendation'))
+    recommendation = models.TextField(_('Recommendation'), blank=True)
     recommendation_ar = models.TextField(_('التوصية'), blank=True)
     
     # Assignment
@@ -529,11 +529,11 @@ class CorrectiveAction(models.Model):
     priority = models.CharField(_('Priority'), max_length=20, choices=PRIORITY_CHOICES, default='medium')
     
     # Root cause analysis
-    root_cause = models.TextField(_('Root Cause'))
+    root_cause = models.TextField(_('Root Cause'), blank=True)
     root_cause_ar = models.TextField(_('السبب الجذري'), blank=True)
     
     # Action details
-    action_description = models.TextField(_('Action Description'))
+    action_description = models.TextField(_('Action Description'), blank=True)
     action_description_ar = models.TextField(_('وصف الإجراء'), blank=True)
     
     # Assignment
@@ -722,8 +722,8 @@ class GapAssessment(models.Model):
     status = models.CharField(_('Status'), max_length=20, choices=STATUS_CHOICES, default='draft')
     
     # Assessment details
-    assessment_date = models.DateField(_('Assessment Date'))
-    scope = models.TextField(_('Assessment Scope'))
+    assessment_date = models.DateField(_('Assessment Date'), null=True, blank=True)
+    scope = models.TextField(_('Assessment Scope'), blank=True)
     scope_ar = models.TextField(_('نطاق التقييم'), blank=True)
     
     # Results summary

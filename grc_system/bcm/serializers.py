@@ -52,6 +52,11 @@ class BusinessImpactAnalysisSerializer(serializers.ModelSerializer):
 
 class BCPlanSerializer(serializers.ModelSerializer):
     owner_name = serializers.CharField(source='owner.get_full_name', read_only=True)
+    covered_functions = serializers.PrimaryKeyRelatedField(
+        queryset=BusinessFunction.objects.all(), 
+        many=True, 
+        required=False
+    )
     
     class Meta:
         model = BCPlan

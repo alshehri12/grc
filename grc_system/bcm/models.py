@@ -251,7 +251,7 @@ class BCPlan(models.Model):
     status = models.CharField(_('Status'), max_length=20, choices=STATUS_CHOICES, default='draft')
     
     # Scope
-    scope = models.TextField(_('Plan Scope'))
+    scope = models.TextField(_('Plan Scope'), blank=True)
     scope_ar = models.TextField(_('نطاق الخطة'), blank=True)
     
     # Covered functions
@@ -262,19 +262,19 @@ class BCPlan(models.Model):
     )
     
     # Plan content sections
-    objectives = models.TextField(_('Objectives'))
+    objectives = models.TextField(_('Objectives'), blank=True)
     objectives_ar = models.TextField(_('الأهداف'), blank=True)
     
-    activation_criteria = models.TextField(_('Activation Criteria'))
+    activation_criteria = models.TextField(_('Activation Criteria'), blank=True)
     activation_criteria_ar = models.TextField(_('معايير التفعيل'), blank=True)
     
-    recovery_strategies = models.TextField(_('Recovery Strategies'))
+    recovery_strategies = models.TextField(_('Recovery Strategies'), blank=True)
     recovery_strategies_ar = models.TextField(_('استراتيجيات الاستعادة'), blank=True)
     
-    roles_responsibilities = models.TextField(_('Roles and Responsibilities'))
+    roles_responsibilities = models.TextField(_('Roles and Responsibilities'), blank=True)
     roles_responsibilities_ar = models.TextField(_('الأدوار والمسؤوليات'), blank=True)
     
-    communication_plan = models.TextField(_('Communication Plan'))
+    communication_plan = models.TextField(_('Communication Plan'), blank=True)
     communication_plan_ar = models.TextField(_('خطة الاتصالات'), blank=True)
     
     resource_requirements = models.TextField(_('Resource Requirements'), blank=True)
@@ -370,19 +370,19 @@ class DisasterRecoveryPlan(models.Model):
     status = models.CharField(_('Status'), max_length=20, choices=STATUS_CHOICES, default='draft')
     
     # Scope
-    scope = models.TextField(_('Plan Scope'))
+    scope = models.TextField(_('Plan Scope'), blank=True)
     scope_ar = models.TextField(_('نطاق الخطة'), blank=True)
     
     # Systems covered
-    covered_systems = models.TextField(_('Covered Systems'))
+    covered_systems = models.TextField(_('Covered Systems'), blank=True)
     covered_systems_ar = models.TextField(_('الأنظمة المشمولة'), blank=True)
     
     # Recovery procedures
-    recovery_procedures = models.TextField(_('Recovery Procedures'))
+    recovery_procedures = models.TextField(_('Recovery Procedures'), blank=True)
     recovery_procedures_ar = models.TextField(_('إجراءات الاستعادة'), blank=True)
     
     # Backup information
-    backup_strategy = models.TextField(_('Backup Strategy'))
+    backup_strategy = models.TextField(_('Backup Strategy'), blank=True)
     backup_strategy_ar = models.TextField(_('استراتيجية النسخ الاحتياطي'), blank=True)
     backup_location = models.CharField(_('Backup Location'), max_length=300, blank=True)
     backup_frequency = models.CharField(_('Backup Frequency'), max_length=100, blank=True)
@@ -768,9 +768,9 @@ class BCMTest(models.Model):
     status = models.CharField(_('Status'), max_length=20, choices=STATUS_CHOICES, default='planned')
     
     # Scope
-    objectives = models.TextField(_('Test Objectives'))
+    objectives = models.TextField(_('Test Objectives'), blank=True)
     objectives_ar = models.TextField(_('أهداف الاختبار'), blank=True)
-    scope = models.TextField(_('Test Scope'))
+    scope = models.TextField(_('Test Scope'), blank=True)
     scope_ar = models.TextField(_('نطاق الاختبار'), blank=True)
     
     # Plans being tested

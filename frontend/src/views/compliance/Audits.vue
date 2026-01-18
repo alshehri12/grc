@@ -293,8 +293,8 @@ const loadAudits = async () => {
 }
 
 const saveAudit = async () => {
-    if (!form.value.audit_id || !form.value.title || !form.value.objectives || !form.value.scope) {
-        toast.add({ severity: 'warn', summary: 'Validation', detail: 'Please fill all required fields', life: 3000 })
+    if (!form.value.audit_id || !form.value.title) {
+        toast.add({ severity: 'warn', summary: 'Validation', detail: 'Please fill Audit ID and Title', life: 3000 })
         return
     }
     

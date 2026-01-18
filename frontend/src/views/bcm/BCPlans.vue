@@ -25,27 +25,22 @@
                             <Button :label="$t('common.create')" icon="pi pi-plus" @click="openCreateDialog" />
                         </div>
                     </template>
-                    <Column field="plan_id" header="ID" sortable style="width: 100px"></Column>
-                    <Column field="name" header="Plan Name">
+                    <Column field="plan_id" :header="$t('common.id')" sortable style="width: 100px"></Column>
+                    <Column field="title" :header="$t('common.title')">
                         <template #body="{ data }">
                             <div>
-                                <span>{{ data.name }}</span>
-                                <div class="text-muted" v-if="data.name_ar">{{ data.name_ar }}</div>
+                                <span>{{ data.title }}</span>
+                                <div class="text-muted" v-if="data.title_ar">{{ data.title_ar }}</div>
                             </div>
                         </template>
                     </Column>
-                    <Column field="plan_type" header="Type">
-                        <template #body="{ data }">
-                            <Tag>{{ getPlanTypeLabel(data.plan_type) }}</Tag>
-                        </template>
-                    </Column>
-                    <Column field="status" header="Status">
+                    <Column field="status" :header="$t('common.status')">
                         <template #body="{ data }">
                             <Tag :severity="getStatusSeverity(data.status)">{{ data.status }}</Tag>
                         </template>
                     </Column>
-                    <Column field="version" header="Version"></Column>
-                    <Column field="last_test_date" header="Last Test"></Column>
+                    <Column field="version" :header="$t('common.version')"></Column>
+                    <Column field="last_tested_date" :header="$t('bcm.lastTest')"></Column>
                     <Column header="Actions" style="width: 150px">
                         <template #body="{ data }">
                             <Button icon="pi pi-eye" text rounded @click="viewPlan(data)" v-tooltip="$t('common.view')" />
@@ -60,100 +55,77 @@
         <!-- Create/Edit Dialog -->
         <Dialog 
             v-model:visible="dialogVisible" 
-            :header="isEdit ? 'Edit BC Plan - تعديل خطة استمرارية الأعمال' : 'New BC Plan - خطة استمرارية أعمال جديدة'"
+            :header="isEdit ? $t('bcm.editPlan') : $t('bcm.newPlan')"
             :style="{ width: '750px' }"
             modal
         >
             <div class="dialog-content">
                 <div class="form-row">
                     <div class="form-field">
-                        <label>Plan ID <span class="required">*</span></label>
+                        <label>{{ $t('common.id') }} <span class="required">*</span></label>
                         <InputText v-model="form.plan_id" placeholder="BCP-001" />
                     </div>
                     <div class="form-field">
-                        <label>Plan Type <span class="required">*</span></label>
-                        <Dropdown 
-                            v-model="form.plan_type" 
-                            :options="planTypeOptions" 
-                            optionLabel="label" 
-                            optionValue="value"
-                            placeholder="Select type"
-                        />
-                    </div>
-                </div>
-                
-                <div class="form-row">
-                    <div class="form-field">
-                        <label>Name (English) <span class="required">*</span></label>
-                        <InputText v-model="form.name" placeholder="Plan name" />
-                    </div>
-                    <div class="form-field">
-                        <label>الاسم (عربي)</label>
-                        <InputText v-model="form.name_ar" placeholder="اسم الخطة" dir="rtl" />
-                    </div>
-                </div>
-                
-                <div class="form-field">
-                    <label>Description <span class="required">*</span></label>
-                    <Textarea v-model="form.description" rows="3" placeholder="Plan description..." />
-                </div>
-                
-                <div class="form-field">
-                    <label>الوصف (عربي)</label>
-                    <Textarea v-model="form.description_ar" rows="3" placeholder="وصف الخطة..." dir="rtl" />
-                </div>
-                
-                <div class="form-field">
-                    <label>Scope <span class="required">*</span></label>
-                    <Textarea v-model="form.scope" rows="2" placeholder="Plan scope..." />
-                </div>
-                
-                <div class="form-field">
-                    <label>Objectives</label>
-                    <Textarea v-model="form.objectives" rows="2" placeholder="Plan objectives..." />
-                </div>
-                
-                <Divider />
-                
-                <h4>Recovery Targets - أهداف الاسترداد</h4>
-                
-                <div class="form-row">
-                    <div class="form-field">
-                        <label>RTO (Recovery Time Objective)</label>
-                        <InputText v-model="form.rto" placeholder="e.g., 4 hours" />
-                    </div>
-                    <div class="form-field">
-                        <label>RPO (Recovery Point Objective)</label>
-                        <InputText v-model="form.rpo" placeholder="e.g., 1 hour" />
-                    </div>
-                </div>
-                
-                <div class="form-row">
-                    <div class="form-field">
-                        <label>Version</label>
-                        <InputText v-model="form.version" placeholder="1.0" />
-                    </div>
-                    <div class="form-field">
-                        <label>Status</label>
+                        <label>{{ $t('common.status') }}</label>
                         <Dropdown 
                             v-model="form.status" 
                             :options="statusOptions" 
                             optionLabel="label" 
                             optionValue="value"
-                            placeholder="Select status"
+                            :placeholder="$t('common.selectStatus')"
                         />
                     </div>
                 </div>
                 
                 <div class="form-row">
                     <div class="form-field">
-                        <label>Review Date</label>
-                        <Calendar v-model="form.review_date" dateFormat="yy-mm-dd" showIcon />
+                        <label>{{ $t('common.title') }} <span class="required">*</span></label>
+                        <InputText v-model="form.title" :placeholder="$t('bcm.planTitlePlaceholder')" />
                     </div>
                     <div class="form-field">
-                        <label>Expiry Date</label>
-                        <Calendar v-model="form.expiry_date" dateFormat="yy-mm-dd" showIcon />
+                        <label>{{ $t('common.titleAr') }}</label>
+                        <InputText v-model="form.title_ar" placeholder="عنوان الخطة" dir="rtl" />
                     </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-field">
+                        <label>{{ $t('common.scope') }}</label>
+                        <Textarea v-model="form.scope" rows="2" :placeholder="$t('bcm.scopePlaceholder')" />
+                    </div>
+                    <div class="form-field">
+                        <label>{{ $t('common.scopeAr') }}</label>
+                        <Textarea v-model="form.scope_ar" rows="2" placeholder="نطاق الخطة..." dir="rtl" />
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-field">
+                        <label>{{ $t('common.objectives') }}</label>
+                        <Textarea v-model="form.objectives" rows="2" :placeholder="$t('bcm.objectivesPlaceholder')" />
+                    </div>
+                    <div class="form-field">
+                        <label>{{ $t('common.objectivesAr') }}</label>
+                        <Textarea v-model="form.objectives_ar" rows="2" placeholder="أهداف الخطة..." dir="rtl" />
+                    </div>
+                </div>
+                
+                <Divider />
+                
+                <div class="form-row">
+                    <div class="form-field">
+                        <label>{{ $t('common.version') }}</label>
+                        <InputText v-model="form.version" placeholder="1.0" />
+                    </div>
+                    <div class="form-field">
+                        <label>{{ $t('common.effectiveDate') }}</label>
+                        <Calendar v-model="form.effective_date" dateFormat="yy-mm-dd" showIcon />
+                    </div>
+                </div>
+                
+                <div class="form-field">
+                    <label>{{ $t('common.reviewDate') }}</label>
+                    <Calendar v-model="form.review_date" dateFormat="yy-mm-dd" showIcon />
                 </div>
             </div>
             
@@ -166,42 +138,38 @@
         <!-- View Dialog -->
         <Dialog 
             v-model:visible="viewDialogVisible" 
-            :header="selectedPlan?.name || 'Plan Details'"
+            :header="selectedPlan?.title || $t('bcm.planDetails')"
             :style="{ width: '600px' }"
             modal
         >
             <div class="view-content" v-if="selectedPlan">
                 <div class="detail-row">
-                    <span class="label">Plan ID:</span>
+                    <span class="label">{{ $t('common.id') }}:</span>
                     <span class="value">{{ selectedPlan.plan_id }}</span>
                 </div>
                 <div class="detail-row">
-                    <span class="label">Name:</span>
-                    <span class="value">{{ selectedPlan.name }}</span>
+                    <span class="label">{{ $t('common.title') }}:</span>
+                    <span class="value">{{ selectedPlan.title }}</span>
                 </div>
-                <div class="detail-row" v-if="selectedPlan.name_ar">
-                    <span class="label">الاسم:</span>
-                    <span class="value">{{ selectedPlan.name_ar }}</span>
-                </div>
-                <div class="detail-row">
-                    <span class="label">Type:</span>
-                    <Tag>{{ getPlanTypeLabel(selectedPlan.plan_type) }}</Tag>
+                <div class="detail-row" v-if="selectedPlan.title_ar">
+                    <span class="label">{{ $t('common.titleAr') }}:</span>
+                    <span class="value">{{ selectedPlan.title_ar }}</span>
                 </div>
                 <div class="detail-row">
-                    <span class="label">Status:</span>
+                    <span class="label">{{ $t('common.status') }}:</span>
                     <Tag :severity="getStatusSeverity(selectedPlan.status)">{{ selectedPlan.status }}</Tag>
                 </div>
                 <div class="detail-row">
-                    <span class="label">RTO:</span>
-                    <span class="value">{{ selectedPlan.rto || 'Not set' }}</span>
+                    <span class="label">{{ $t('common.version') }}:</span>
+                    <span class="value">{{ selectedPlan.version }}</span>
                 </div>
-                <div class="detail-row">
-                    <span class="label">RPO:</span>
-                    <span class="value">{{ selectedPlan.rpo || 'Not set' }}</span>
+                <div class="detail-row" v-if="selectedPlan.scope">
+                    <span class="label">{{ $t('common.scope') }}:</span>
+                    <span class="value">{{ selectedPlan.scope }}</span>
                 </div>
-                <div class="detail-row">
-                    <span class="label">Description:</span>
-                    <span class="value">{{ selectedPlan.description }}</span>
+                <div class="detail-row" v-if="selectedPlan.objectives">
+                    <span class="label">{{ $t('common.objectives') }}:</span>
+                    <span class="value">{{ selectedPlan.objectives }}</span>
                 </div>
             </div>
         </Dialog>
@@ -240,19 +208,16 @@ const selectedPlan = ref(null)
 
 const form = ref({
     plan_id: '',
-    name: '',
-    name_ar: '',
-    description: '',
-    description_ar: '',
+    title: '',
+    title_ar: '',
     scope: '',
+    scope_ar: '',
     objectives: '',
-    plan_type: 'bcp',
+    objectives_ar: '',
     status: 'draft',
     version: '1.0',
-    rto: '',
-    rpo: '',
     review_date: null,
-    expiry_date: null
+    effective_date: null
 })
 
 const planTypeOptions = [
@@ -294,19 +259,16 @@ const getStatusSeverity = (status) => {
 const resetForm = () => {
     form.value = {
         plan_id: '',
-        name: '',
-        name_ar: '',
-        description: '',
-        description_ar: '',
+        title: '',
+        title_ar: '',
         scope: '',
+        scope_ar: '',
         objectives: '',
-        plan_type: 'bcp',
+        objectives_ar: '',
         status: 'draft',
         version: '1.0',
-        rto: '',
-        rpo: '',
         review_date: null,
-        expiry_date: null
+        effective_date: null
     }
 }
 
@@ -342,8 +304,8 @@ const loadPlans = async () => {
 }
 
 const savePlan = async () => {
-    if (!form.value.plan_id || !form.value.name || !form.value.description || !form.value.scope) {
-        toast.add({ severity: 'warn', summary: 'Validation', detail: 'Please fill all required fields', life: 3000 })
+    if (!form.value.plan_id || !form.value.title) {
+        toast.add({ severity: 'warn', summary: 'Validation', detail: 'Please fill Plan ID and Title', life: 3000 })
         return
     }
     

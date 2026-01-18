@@ -80,11 +80,11 @@ class Policy(models.Model):
     title_ar = models.CharField(_('العنوان'), max_length=300, blank=True)
     
     # Content
-    purpose = models.TextField(_('Purpose'))
+    purpose = models.TextField(_('Purpose'), blank=True)
     purpose_ar = models.TextField(_('الغرض'), blank=True)
-    scope = models.TextField(_('Scope'))
+    scope = models.TextField(_('Scope'), blank=True)
     scope_ar = models.TextField(_('النطاق'), blank=True)
-    policy_statement = models.TextField(_('Policy Statement'))
+    policy_statement = models.TextField(_('Policy Statement'), blank=True)
     policy_statement_ar = models.TextField(_('بيان السياسة'), blank=True)
     
     # Metadata

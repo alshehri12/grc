@@ -203,7 +203,7 @@ class Risk(models.Model):
     risk_id = models.CharField(_('Risk ID'), max_length=50)
     title = models.CharField(_('Risk Title'), max_length=300)
     title_ar = models.CharField(_('عنوان المخاطر'), max_length=300, blank=True)
-    description = models.TextField(_('Risk Description'))
+    description = models.TextField(_('Risk Description'), blank=True)
     description_ar = models.TextField(_('وصف المخاطر'), blank=True)
     
     risk_type = models.CharField(_('Risk Type'), max_length=20, choices=RISK_TYPES, default='operational')

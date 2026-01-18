@@ -287,8 +287,8 @@ const loadControls = async () => {
 }
 
 const saveControl = async () => {
-    if (!form.value.control_id || !form.value.title || !form.value.description) {
-        toast.add({ severity: 'warn', summary: 'Validation', detail: 'Please fill all required fields', life: 3000 })
+    if (!form.value.control_id || !form.value.title) {
+        toast.add({ severity: 'warn', summary: 'Validation', detail: 'Please fill Control ID and Title', life: 3000 })
         return
     }
     

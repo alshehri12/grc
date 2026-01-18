@@ -312,8 +312,8 @@ const loadTests = async () => {
 }
 
 const saveTest = async () => {
-    if (!form.value.test_id || !form.value.title || !form.value.objectives || !form.value.scope) {
-        toast.add({ severity: 'warn', summary: 'Validation', detail: 'Please fill all required fields', life: 3000 })
+    if (!form.value.test_id || !form.value.title) {
+        toast.add({ severity: 'warn', summary: 'Validation', detail: 'Please fill Test ID and Title', life: 3000 })
         return
     }
     

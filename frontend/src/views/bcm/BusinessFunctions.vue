@@ -276,8 +276,8 @@ const loadFunctions = async () => {
 }
 
 const saveFunction = async () => {
-    if (!form.value.function_id || !form.value.name || !form.value.description) {
-        toast.add({ severity: 'warn', summary: 'Validation', detail: 'Please fill all required fields', life: 3000 })
+    if (!form.value.function_id || !form.value.name) {
+        toast.add({ severity: 'warn', summary: 'Validation', detail: 'Please fill Function ID and Name', life: 3000 })
         return
     }
     

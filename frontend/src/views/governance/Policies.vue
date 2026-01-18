@@ -78,7 +78,7 @@
         <!-- Create/Edit Dialog -->
         <Dialog 
             v-model:visible="dialogVisible" 
-            :header="isEdit ? 'Edit Policy - تعديل السياسة' : 'New Policy - سياسة جديدة'"
+            :header="isEdit ? $t('governance.editPolicy') : $t('governance.newPolicy')"
             :style="{ width: '700px' }"
             modal
             class="policy-dialog"
@@ -86,55 +86,46 @@
             <div class="dialog-content">
                 <div class="form-row">
                     <div class="form-field">
-                        <label>Policy ID <span class="required">*</span></label>
+                        <label>{{ $t('common.id') }} <span class="required">*</span></label>
                         <InputText v-model="form.policy_id" placeholder="POL-001" />
                     </div>
                     <div class="form-field">
-                        <label>Version</label>
+                        <label>{{ $t('common.version') }}</label>
                         <InputText v-model="form.version" placeholder="1.0" />
                     </div>
                 </div>
                 
                 <div class="form-row">
                     <div class="form-field">
-                        <label>Title (English) <span class="required">*</span></label>
-                        <InputText v-model="form.title" placeholder="Policy title" />
+                        <label>{{ $t('common.title') }} <span class="required">*</span></label>
+                        <InputText v-model="form.title" :placeholder="$t('governance.policyTitlePlaceholder')" />
                     </div>
                     <div class="form-field">
-                        <label>العنوان (عربي)</label>
+                        <label>{{ $t('common.titleAr') }}</label>
                         <InputText v-model="form.title_ar" placeholder="عنوان السياسة" dir="rtl" />
                     </div>
                 </div>
                 
-                <div class="form-field">
-                    <label>Purpose <span class="required">*</span></label>
-                    <Textarea v-model="form.purpose" rows="3" placeholder="Policy purpose..." />
-                </div>
-                
-                <div class="form-field">
-                    <label>الغرض (عربي)</label>
-                    <Textarea v-model="form.purpose_ar" rows="3" placeholder="غرض السياسة..." dir="rtl" />
-                </div>
-                
-                <div class="form-field">
-                    <label>Scope <span class="required">*</span></label>
-                    <Textarea v-model="form.scope" rows="3" placeholder="Policy scope..." />
-                </div>
-                
-                <div class="form-field">
-                    <label>Policy Statement <span class="required">*</span></label>
-                    <Textarea v-model="form.policy_statement" rows="4" placeholder="Policy statement..." />
+                <div class="form-row">
+                    <div class="form-field">
+                        <label>{{ $t('common.scope') }}</label>
+                        <Textarea v-model="form.scope" rows="2" placeholder="Policy scope..." />
+                    </div>
+                    <div class="form-field">
+                        <label>{{ $t('common.scopeAr') }}</label>
+                        <Textarea v-model="form.scope_ar" rows="2" placeholder="نطاق السياسة..." dir="rtl" />
+                    </div>
                 </div>
                 
                 <div class="form-row">
                     <div class="form-field">
-                        <label>Status</label>
+                        <label>{{ $t('common.status') }}</label>
                         <Dropdown 
                             v-model="form.status" 
                             :options="statusOptions" 
                             optionLabel="label" 
                             optionValue="value"
-                            placeholder="Select status"
+                            :placeholder="$t('common.selectStatus')"
                         />
                     </div>
                     <div class="form-field">
@@ -151,11 +142,11 @@
                 
                 <div class="form-row">
                     <div class="form-field">
-                        <label>Effective Date</label>
+                        <label>{{ $t('common.effectiveDate') }}</label>
                         <Calendar v-model="form.effective_date" dateFormat="yy-mm-dd" showIcon />
                     </div>
                     <div class="form-field">
-                        <label>Review Date</label>
+                        <label>{{ $t('common.reviewDate') }}</label>
                         <Calendar v-model="form.review_date" dateFormat="yy-mm-dd" showIcon />
                     </div>
                 </div>
@@ -338,8 +329,8 @@ const loadPolicies = async () => {
 }
 
 const savePolicy = async () => {
-    if (!form.value.policy_id || !form.value.title || !form.value.purpose || !form.value.scope || !form.value.policy_statement) {
-        toast.add({ severity: 'warn', summary: 'Validation', detail: 'Please fill all required fields', life: 3000 })
+    if (!form.value.policy_id || !form.value.title) {
+        toast.add({ severity: 'warn', summary: 'Validation', detail: 'Please fill Policy ID and Title', life: 3000 })
         return
     }
     

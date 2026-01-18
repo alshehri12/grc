@@ -265,8 +265,8 @@ const loadPlans = async () => {
 }
 
 const savePlan = async () => {
-    if (!form.value.plan_id || !form.value.title || !form.value.description || !form.value.scope) {
-        toast.add({ severity: 'warn', summary: 'Validation', detail: 'Please fill all required fields', life: 3000 })
+    if (!form.value.plan_id || !form.value.title) {
+        toast.add({ severity: 'warn', summary: 'Validation', detail: 'Please fill Plan ID and Title', life: 3000 })
         return
     }
     

@@ -1,7 +1,7 @@
 {
   "app": {
     "name": "نظام الحوكمة والمخاطر والامتثال",
-    "tagline": "الحوكمة، المخاطر والامتثال"
+    "tagline": "الحوكمة والمخاطر والامتثال"
   },
   "nav": {
     "dashboard": "لوحة المعلومات",
@@ -18,7 +18,13 @@
     "policies": "السياسات",
     "procedures": "الإجراءات",
     "documents": "الوثائق",
-    "frameworks": "أطر العمل"
+    "frameworks": "الأطر التنظيمية",
+    "newPolicy": "سياسة جديدة",
+    "editPolicy": "تعديل السياسة",
+    "policyDetails": "تفاصيل السياسة",
+    "policyId": "رقم السياسة",
+    "policyTitle": "عنوان السياسة",
+    "policyTitlePlaceholder": "أدخل عنوان السياسة"
   },
   "risk": {
     "title": "إدارة المخاطر",
@@ -26,24 +32,63 @@
     "assessment": "تقييم المخاطر",
     "treatment": "معالجة المخاطر",
     "matrix": "مصفوفة المخاطر",
-    "acceptance": "قبول المخاطر"
+    "acceptance": "قبول المخاطر",
+    "newRisk": "خطر جديد",
+    "editRisk": "تعديل الخطر",
+    "riskDetails": "تفاصيل الخطر",
+    "riskId": "رقم الخطر",
+    "riskTitle": "عنوان الخطر",
+    "riskTitlePlaceholder": "أدخل عنوان الخطر",
+    "likelihood": "الاحتمالية",
+    "impact": "الأثر",
+    "riskType": "نوع الخطر",
+    "inherentRisk": "الخطر المتأصل",
+    "residualRisk": "الخطر المتبقي"
   },
   "bcm": {
     "title": "استمرارية الأعمال",
-    "functions": "وظائف الأعمال",
+    "functions": "الوظائف الحيوية",
     "bia": "تحليل أثر الأعمال",
     "bcp": "خطط استمرارية الأعمال",
+    "plans": "خطط الاستمرارية",
     "drp": "خطط التعافي من الكوارث",
     "crisis": "إدارة الأزمات",
-    "tests": "الاختبارات والتمارين"
+    "tests": "الاختبارات والتمارين",
+    "newPlan": "خطة استمرارية جديدة",
+    "editPlan": "تعديل خطة الاستمرارية",
+    "planDetails": "تفاصيل الخطة",
+    "planTitlePlaceholder": "أدخل عنوان الخطة",
+    "scopePlaceholder": "حدد نطاق الخطة...",
+    "objectivesPlaceholder": "حدد أهداف الخطة...",
+    "lastTest": "آخر اختبار",
+    "rto": "وقت التعافي المستهدف",
+    "rpo": "نقطة التعافي المستهدفة",
+    "newFunction": "وظيفة حيوية جديدة",
+    "editFunction": "تعديل الوظيفة الحيوية",
+    "functionDetails": "تفاصيل الوظيفة",
+    "functionName": "اسم الوظيفة",
+    "criticality": "الأهمية",
+    "newTest": "اختبار جديد",
+    "editTest": "تعديل الاختبار",
+    "testDetails": "تفاصيل الاختبار"
   },
   "compliance": {
     "title": "الامتثال",
     "controls": "الضوابط",
     "audits": "التدقيق",
-    "findings": "نتائج التدقيق",
+    "findings": "الملاحظات",
     "evidence": "الأدلة",
-    "gap": "تحليل الفجوات"
+    "gap": "تحليل الفجوات",
+    "newControl": "ضابط جديد",
+    "editControl": "تعديل الضابط",
+    "controlDetails": "تفاصيل الضابط",
+    "newAudit": "تدقيق جديد",
+    "editAudit": "تعديل التدقيق",
+    "auditDetails": "تفاصيل التدقيق",
+    "auditType": "نوع التدقيق",
+    "leadAuditor": "المدقق الرئيسي",
+    "plannedStart": "تاريخ البدء المخطط",
+    "plannedEnd": "تاريخ الانتهاء المخطط"
   },
   "common": {
     "save": "حفظ",
@@ -63,18 +108,62 @@
     "actions": "الإجراءات",
     "loading": "جاري التحميل...",
     "noData": "لا توجد بيانات",
-    "confirmDelete": "هل أنت متأكد من حذف هذا العنصر؟"
+    "confirmDelete": "هل أنت متأكد من حذف هذا العنصر؟",
+    "id": "الرقم",
+    "title": "العنوان",
+    "titleAr": "العنوان (عربي)",
+    "name": "الاسم",
+    "nameAr": "الاسم (عربي)",
+    "description": "الوصف",
+    "descriptionAr": "الوصف (عربي)",
+    "scope": "النطاق",
+    "scopeAr": "النطاق (عربي)",
+    "objectives": "الأهداف",
+    "objectivesAr": "الأهداف (عربي)",
+    "version": "الإصدار",
+    "effectiveDate": "تاريخ السريان",
+    "reviewDate": "تاريخ المراجعة",
+    "expiryDate": "تاريخ الانتهاء",
+    "owner": "المالك",
+    "department": "الإدارة",
+    "category": "التصنيف",
+    "type": "النوع",
+    "priority": "الأولوية",
+    "selectStatus": "اختر الحالة",
+    "selectType": "اختر النوع",
+    "selectCategory": "اختر التصنيف",
+    "required": "مطلوب",
+    "optional": "اختياري",
+    "success": "نجاح",
+    "error": "خطأ",
+    "warning": "تحذير",
+    "info": "معلومات",
+    "savedSuccessfully": "تم الحفظ بنجاح",
+    "deletedSuccessfully": "تم الحذف بنجاح",
+    "failedToSave": "فشل في الحفظ",
+    "failedToDelete": "فشل في الحذف",
+    "fillRequiredFields": "يرجى ملء جميع الحقول المطلوبة"
   },
   "status": {
     "draft": "مسودة",
     "pending": "قيد الانتظار",
+    "pendingReview": "قيد المراجعة",
+    "pendingApproval": "قيد الاعتماد",
     "approved": "معتمد",
     "published": "منشور",
     "active": "نشط",
     "inactive": "غير نشط",
     "completed": "مكتمل",
     "open": "مفتوح",
-    "closed": "مغلق"
+    "closed": "مغلق",
+    "retired": "متقاعد",
+    "underRevision": "قيد التعديل",
+    "identified": "محدد",
+    "assessed": "مقيم",
+    "treating": "قيد المعالجة",
+    "monitoring": "قيد المراقبة",
+    "planned": "مخطط",
+    "inProgress": "قيد التنفيذ"
   },
   "dashboard": {
     "title": "لوحة المعلومات",
@@ -83,8 +172,12 @@
     "complianceStatus": "حالة الامتثال",
     "pendingTasks": "المهام المعلقة",
     "recentActivities": "الأنشطة الأخيرة",
-    "upcomingAudits": "عمليات التدقيق القادمة",
-    "expiringEvidence": "الأدلة المنتهية قريباً"
+    "upcomingAudits": "التدقيقات القادمة",
+    "expiringEvidence": "الأدلة المنتهية",
+    "totalRisks": "إجمالي المخاطر",
+    "highRisks": "المخاطر العالية",
+    "openFindings": "الملاحظات المفتوحة",
+    "complianceScore": "نسبة الامتثال"
   },
   "auth": {
     "login": "تسجيل الدخول",
@@ -92,7 +185,9 @@
     "password": "كلمة المرور",
     "rememberMe": "تذكرني",
     "forgotPassword": "نسيت كلمة المرور؟",
-    "loginError": "اسم المستخدم أو كلمة المرور غير صحيحة"
+    "loginError": "اسم المستخدم أو كلمة المرور غير صحيحة",
+    "loginFailed": "فشل تسجيل الدخول",
+    "loginSuccess": "تم تسجيل الدخول بنجاح"
   },
   "settings": {
     "title": "الإعدادات",
@@ -100,6 +195,8 @@
     "theme": "المظهر",
     "dark": "داكن",
     "light": "فاتح",
-    "notifications": "الإشعارات"
+    "notifications": "الإشعارات",
+    "english": "الإنجليزية",
+    "arabic": "العربية"
   }
 }

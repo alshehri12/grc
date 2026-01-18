@@ -85,61 +85,57 @@
         <!-- Create/Edit Dialog -->
         <Dialog 
             v-model:visible="dialogVisible" 
-            :header="isEdit ? 'Edit Risk - تعديل المخاطر' : 'New Risk - مخاطر جديدة'"
+            :header="isEdit ? $t('risk.editRisk') : $t('risk.newRisk')"
             :style="{ width: '750px' }"
             modal
         >
             <div class="dialog-content">
                 <div class="form-row">
                     <div class="form-field">
-                        <label>Risk ID <span class="required">*</span></label>
+                        <label>{{ $t('common.id') }} <span class="required">*</span></label>
                         <InputText v-model="form.risk_id" placeholder="RSK-001" />
                     </div>
                     <div class="form-field">
-                        <label>Risk Type</label>
+                        <label>{{ $t('risk.riskType') }}</label>
                         <Dropdown 
                             v-model="form.risk_type" 
                             :options="riskTypeOptions" 
                             optionLabel="label" 
                             optionValue="value"
-                            placeholder="Select type"
+                            :placeholder="$t('common.selectType')"
                         />
                     </div>
                 </div>
                 
                 <div class="form-row">
                     <div class="form-field">
-                        <label>Title (English) <span class="required">*</span></label>
-                        <InputText v-model="form.title" placeholder="Risk title" />
+                        <label>{{ $t('common.title') }} <span class="required">*</span></label>
+                        <InputText v-model="form.title" :placeholder="$t('risk.riskTitlePlaceholder')" />
                     </div>
                     <div class="form-field">
-                        <label>العنوان (عربي)</label>
+                        <label>{{ $t('common.titleAr') }}</label>
                         <InputText v-model="form.title_ar" placeholder="عنوان المخاطر" dir="rtl" />
                     </div>
                 </div>
                 
-                <div class="form-field">
-                    <label>Description <span class="required">*</span></label>
-                    <Textarea v-model="form.description" rows="3" placeholder="Risk description..." />
-                </div>
-                
-                <div class="form-field">
-                    <label>الوصف (عربي)</label>
-                    <Textarea v-model="form.description_ar" rows="3" placeholder="وصف المخاطر..." dir="rtl" />
-                </div>
-                
-                <div class="form-field">
-                    <label>Risk Source</label>
-                    <Textarea v-model="form.risk_source" rows="2" placeholder="Source of risk..." />
+                <div class="form-row">
+                    <div class="form-field">
+                        <label>{{ $t('common.description') }}</label>
+                        <Textarea v-model="form.description" rows="2" placeholder="Risk description..." />
+                    </div>
+                    <div class="form-field">
+                        <label>{{ $t('common.descriptionAr') }}</label>
+                        <Textarea v-model="form.description_ar" rows="2" placeholder="وصف المخاطر..." dir="rtl" />
+                    </div>
                 </div>
                 
                 <Divider />
                 
-                <h4>Risk Assessment - تقييم المخاطر</h4>
+                <h4>{{ $t('risk.inherentRisk') }}</h4>
                 
                 <div class="form-row">
                     <div class="form-field">
-                        <label>Inherent Likelihood (1-5) <span class="required">*</span></label>
+                        <label>{{ $t('risk.likelihood') }} (1-5) <span class="required">*</span></label>
                         <Dropdown 
                             v-model="form.inherent_likelihood" 
                             :options="likelihoodOptions" 
@@ -149,7 +145,7 @@
                         />
                     </div>
                     <div class="form-field">
-                        <label>Inherent Impact (1-5) <span class="required">*</span></label>
+                        <label>{{ $t('risk.impact') }} (1-5) <span class="required">*</span></label>
                         <Dropdown 
                             v-model="form.inherent_impact" 
                             :options="impactOptions" 
@@ -390,8 +386,8 @@ const loadRisks = async () => {
 }
 
 const saveRisk = async () => {
-    if (!form.value.risk_id || !form.value.title || !form.value.description) {
-        toast.add({ severity: 'warn', summary: 'Validation', detail: 'Please fill all required fields', life: 3000 })
+    if (!form.value.risk_id || !form.value.title) {
+        toast.add({ severity: 'warn', summary: 'Validation', detail: 'Please fill Risk ID and Title', life: 3000 })
         return
     }
     
