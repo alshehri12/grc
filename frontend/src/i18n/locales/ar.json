@@ -1,0 +1,105 @@
+{
+  "app": {
+    "name": "نظام الحوكمة والمخاطر والامتثال",
+    "tagline": "الحوكمة، المخاطر والامتثال"
+  },
+  "nav": {
+    "dashboard": "لوحة المعلومات",
+    "governance": "الحوكمة",
+    "risk": "إدارة المخاطر",
+    "bcm": "استمرارية الأعمال",
+    "compliance": "الامتثال",
+    "settings": "الإعدادات",
+    "profile": "الملف الشخصي",
+    "logout": "تسجيل الخروج"
+  },
+  "governance": {
+    "title": "الحوكمة",
+    "policies": "السياسات",
+    "procedures": "الإجراءات",
+    "documents": "الوثائق",
+    "frameworks": "أطر العمل"
+  },
+  "risk": {
+    "title": "إدارة المخاطر",
+    "register": "سجل المخاطر",
+    "assessment": "تقييم المخاطر",
+    "treatment": "معالجة المخاطر",
+    "matrix": "مصفوفة المخاطر",
+    "acceptance": "قبول المخاطر"
+  },
+  "bcm": {
+    "title": "استمرارية الأعمال",
+    "functions": "وظائف الأعمال",
+    "bia": "تحليل أثر الأعمال",
+    "bcp": "خطط استمرارية الأعمال",
+    "drp": "خطط التعافي من الكوارث",
+    "crisis": "إدارة الأزمات",
+    "tests": "الاختبارات والتمارين"
+  },
+  "compliance": {
+    "title": "الامتثال",
+    "controls": "الضوابط",
+    "audits": "التدقيق",
+    "findings": "نتائج التدقيق",
+    "evidence": "الأدلة",
+    "gap": "تحليل الفجوات"
+  },
+  "common": {
+    "save": "حفظ",
+    "cancel": "إلغاء",
+    "delete": "حذف",
+    "edit": "تعديل",
+    "view": "عرض",
+    "create": "إنشاء",
+    "search": "بحث",
+    "filter": "تصفية",
+    "export": "تصدير",
+    "import": "استيراد",
+    "submit": "إرسال",
+    "approve": "اعتماد",
+    "reject": "رفض",
+    "status": "الحالة",
+    "actions": "الإجراءات",
+    "loading": "جاري التحميل...",
+    "noData": "لا توجد بيانات",
+    "confirmDelete": "هل أنت متأكد من حذف هذا العنصر؟"
+  },
+  "status": {
+    "draft": "مسودة",
+    "pending": "قيد الانتظار",
+    "approved": "معتمد",
+    "published": "منشور",
+    "active": "نشط",
+    "inactive": "غير نشط",
+    "completed": "مكتمل",
+    "open": "مفتوح",
+    "closed": "مغلق"
+  },
+  "dashboard": {
+    "title": "لوحة المعلومات",
+    "welcome": "مرحباً",
+    "riskOverview": "نظرة عامة على المخاطر",
+    "complianceStatus": "حالة الامتثال",
+    "pendingTasks": "المهام المعلقة",
+    "recentActivities": "الأنشطة الأخيرة",
+    "upcomingAudits": "عمليات التدقيق القادمة",
+    "expiringEvidence": "الأدلة المنتهية قريباً"
+  },
+  "auth": {
+    "login": "تسجيل الدخول",
+    "username": "اسم المستخدم",
+    "password": "كلمة المرور",
+    "rememberMe": "تذكرني",
+    "forgotPassword": "نسيت كلمة المرور؟",
+    "loginError": "اسم المستخدم أو كلمة المرور غير صحيحة"
+  },
+  "settings": {
+    "title": "الإعدادات",
+    "language": "اللغة",
+    "theme": "المظهر",
+    "dark": "داكن",
+    "light": "فاتح",
+    "notifications": "الإشعارات"
+  }
+}
