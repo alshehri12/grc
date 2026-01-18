@@ -60,19 +60,45 @@ class DashboardViewSet(viewsets.ModelViewSet):
         from compliance.models import Audit, AuditFinding, ControlImplementation
         from workflow.models import Task
         from governance.models import Policy
+        from bcm.models import BCPlan, DisasterRecoveryPlan, BusinessFunction, BCMTest
         
         org_id = request.query_params.get('organization')
         
-        # Risk summary
+        # Risk summary with proper level calculation
         risks = Risk.objects.all()
         if org_id:
             risks = risks.filter(organization_id=org_id)
         
+        # Calculate risk levels properly
+        critical_count = 0
+        high_count = 0
+        medium_count = 0
+        low_count = 0
+        
+        for risk in risks:
+            score = risk.inherent_likelihood * risk.inherent_impact
+            if score >= 20:
+                critical_count += 1
+            elif score >= 12:
+                high_count += 1
+            elif score >= 6:
+                medium_count += 1
+            else:
+                low_count += 1
+        
         risk_summary = {
             'total': risks.count(),
-            'critical': risks.filter(inherent_likelihood__gte=4, inherent_impact__gte=4).count(),
-            'high': risks.filter(inherent_likelihood__gte=3, inherent_impact__gte=3).count(),
+            'critical': critical_count,
+            'high': high_count,
+            'medium': medium_count,
+            'low': low_count,
             'treating': risks.filter(status='treating').count(),
+            'by_level': {
+                'critical': critical_count,
+                'high': high_count,
+                'medium': medium_count,
+                'low': low_count,
+            }
         }
         
         # Compliance summary
@@ -82,11 +108,15 @@ class DashboardViewSet(viewsets.ModelViewSet):
         
         total_impls = impls.count()
         implemented = impls.filter(status='implemented').count()
+        partial = impls.filter(status='partial').count()
+        not_implemented = impls.filter(status__in=['not_implemented', 'not_applicable']).count()
         compliance_rate = (implemented / total_impls * 100) if total_impls > 0 else 0
         
         compliance_summary = {
             'total_controls': total_impls,
             'implemented': implemented,
+            'partial': partial,
+            'not_implemented': not_implemented,
             'compliance_rate': round(compliance_rate, 1),
             'avg_maturity': impls.aggregate(avg=Avg('maturity_level'))['avg'] or 0,
         }
@@ -110,7 +140,7 @@ class DashboardViewSet(viewsets.ModelViewSet):
             'overdue': tasks.filter(status__in=['pending', 'in_progress'], due_date__lt=timezone.now()).count(),
         }
         
-        # Policies
+        # Policies (Governance)
         policies = Policy.objects.all()
         if org_id:
             policies = policies.filter(organization_id=org_id)
@@ -118,10 +148,46 @@ class DashboardViewSet(viewsets.ModelViewSet):
         policies_summary = {
             'total': policies.count(),
             'published': policies.filter(status='published').count(),
+            'draft': policies.filter(status='draft').count(),
             'pending_review': policies.filter(status='pending_review').count(),
             'expiring_soon': policies.filter(
                 review_date__lte=timezone.now().date() + timezone.timedelta(days=30)
             ).count(),
+        }
+        
+        # BCM Summary
+        bc_plans = BCPlan.objects.all()
+        dr_plans = DisasterRecoveryPlan.objects.all()
+        functions = BusinessFunction.objects.all()
+        bcm_tests = BCMTest.objects.all()
+        
+        if org_id:
+            bc_plans = bc_plans.filter(organization_id=org_id)
+            dr_plans = dr_plans.filter(organization_id=org_id)
+            functions = functions.filter(organization_id=org_id)
+            bcm_tests = bcm_tests.filter(organization_id=org_id)
+        
+        bcm_summary = {
+            'bc_plans': bc_plans.count(),
+            'bc_plans_active': bc_plans.filter(status='active').count(),
+            'dr_plans': dr_plans.count(),
+            'dr_plans_active': dr_plans.filter(status='active').count(),
+            'business_functions': functions.count(),
+            'critical_functions': functions.filter(criticality='critical').count(),
+            'tests_completed': bcm_tests.filter(status='completed').count(),
+            'tests_planned': bcm_tests.filter(status='planned').count(),
+        }
+        
+        # Audits summary
+        audits = Audit.objects.all()
+        if org_id:
+            audits = audits.filter(organization_id=org_id)
+        
+        audits_summary = {
+            'total': audits.count(),
+            'planned': audits.filter(status='planned').count(),
+            'in_progress': audits.filter(status='in_progress').count(),
+            'completed': audits.filter(status='completed').count(),
         }
         
         return Response({
@@ -130,6 +196,8 @@ class DashboardViewSet(viewsets.ModelViewSet):
             'findings': findings_summary,
             'tasks': tasks_summary,
             'policies': policies_summary,
+            'bcm': bcm_summary,
+            'audits': audits_summary,
         })
 
 

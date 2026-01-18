@@ -7,7 +7,7 @@
             </p>
         </div>
         
-        <!-- KPI Cards -->
+        <!-- KPI Cards Row 1 -->
         <div class="kpi-grid">
             <div class="kpi-card risk">
                 <div class="kpi-icon">
@@ -15,10 +15,10 @@
                 </div>
                 <div class="kpi-content">
                     <span class="kpi-value">{{ summary.risks?.total || 0 }}</span>
-                    <span class="kpi-label">{{ $t('risk.register') }}</span>
+                    <span class="kpi-label">{{ $t('dashboard.totalRisks') }}</span>
                 </div>
                 <div class="kpi-badge critical" v-if="summary.risks?.critical > 0">
-                    {{ summary.risks.critical }} Critical
+                    {{ summary.risks.critical }} {{ $t('status.critical') }}
                 </div>
             </div>
             
@@ -28,7 +28,72 @@
                 </div>
                 <div class="kpi-content">
                     <span class="kpi-value">{{ summary.compliance?.compliance_rate || 0 }}%</span>
-                    <span class="kpi-label">{{ $t('dashboard.complianceStatus') }}</span>
+                    <span class="kpi-label">{{ $t('dashboard.complianceScore') }}</span>
+                </div>
+            </div>
+            
+            <div class="kpi-card policies">
+                <div class="kpi-icon">
+                    <i class="pi pi-file"></i>
+                </div>
+                <div class="kpi-content">
+                    <span class="kpi-value">{{ summary.policies?.total || 0 }}</span>
+                    <span class="kpi-label">{{ $t('governance.policies') }}</span>
+                </div>
+                <div class="kpi-badge warning" v-if="summary.policies?.expiring_soon > 0">
+                    {{ summary.policies.expiring_soon }} Expiring
+                </div>
+            </div>
+            
+            <div class="kpi-card findings">
+                <div class="kpi-icon">
+                    <i class="pi pi-flag"></i>
+                </div>
+                <div class="kpi-content">
+                    <span class="kpi-value">{{ summary.findings?.total_open || 0 }}</span>
+                    <span class="kpi-label">{{ $t('dashboard.openFindings') }}</span>
+                </div>
+                <div class="kpi-badge critical" v-if="summary.findings?.overdue > 0">
+                    {{ summary.findings.overdue }} Overdue
+                </div>
+            </div>
+        </div>
+        
+        <!-- KPI Cards Row 2 - BCM -->
+        <div class="kpi-grid">
+            <div class="kpi-card bcm">
+                <div class="kpi-icon">
+                    <i class="pi pi-shield"></i>
+                </div>
+                <div class="kpi-content">
+                    <span class="kpi-value">{{ summary.bcm?.bc_plans || 0 }}</span>
+                    <span class="kpi-label">{{ $t('bcm.bcp') }}</span>
+                </div>
+                <div class="kpi-badge success" v-if="summary.bcm?.bc_plans_active > 0">
+                    {{ summary.bcm.bc_plans_active }} Active
+                </div>
+            </div>
+            
+            <div class="kpi-card drp">
+                <div class="kpi-icon">
+                    <i class="pi pi-server"></i>
+                </div>
+                <div class="kpi-content">
+                    <span class="kpi-value">{{ summary.bcm?.dr_plans || 0 }}</span>
+                    <span class="kpi-label">{{ $t('bcm.drp') }}</span>
+                </div>
+            </div>
+            
+            <div class="kpi-card functions">
+                <div class="kpi-icon">
+                    <i class="pi pi-sitemap"></i>
+                </div>
+                <div class="kpi-content">
+                    <span class="kpi-value">{{ summary.bcm?.business_functions || 0 }}</span>
+                    <span class="kpi-label">{{ $t('bcm.functions') }}</span>
+                </div>
+                <div class="kpi-badge critical" v-if="summary.bcm?.critical_functions > 0">
+                    {{ summary.bcm.critical_functions }} Critical
                 </div>
             </div>
             
@@ -42,16 +107,6 @@
                 </div>
                 <div class="kpi-badge warning" v-if="summary.tasks?.overdue > 0">
                     {{ summary.tasks.overdue }} Overdue
-                </div>
-            </div>
-            
-            <div class="kpi-card findings">
-                <div class="kpi-icon">
-                    <i class="pi pi-flag"></i>
-                </div>
-                <div class="kpi-content">
-                    <span class="kpi-value">{{ summary.findings?.total_open || 0 }}</span>
-                    <span class="kpi-label">Open Findings</span>
                 </div>
             </div>
         </div>
@@ -71,6 +126,13 @@
                     <Chart type="bar" :data="complianceChartData" :options="barChartOptions" />
                 </template>
             </Card>
+            
+            <Card class="chart-card">
+                <template #title>{{ $t('bcm.title') }}</template>
+                <template #content>
+                    <Chart type="pie" :data="bcmChartData" :options="chartOptions" />
+                </template>
+            </Card>
         </div>
         
         <!-- Tables Row -->
@@ -79,8 +141,14 @@
                 <template #title>{{ $t('dashboard.pendingTasks') }}</template>
                 <template #content>
                     <DataTable :value="tasks" :rows="5" paginator responsiveLayout="scroll">
-                        <Column field="title" :header="$t('common.status')"></Column>
-                        <Column field="priority" header="Priority">
+                        <template #empty>
+                            <div class="empty-state">
+                                <i class="pi pi-check-circle"></i>
+                                <p>No pending tasks</p>
+                            </div>
+                        </template>
+                        <Column field="title" :header="$t('common.title')"></Column>
+                        <Column field="priority" :header="$t('common.priority')">
                             <template #body="{ data }">
                                 <Tag :severity="getPrioritySeverity(data.priority)">
                                     {{ data.priority }}
@@ -96,13 +164,58 @@
                 <template #title>{{ $t('dashboard.upcomingAudits') }}</template>
                 <template #content>
                     <DataTable :value="audits" :rows="5" paginator responsiveLayout="scroll">
-                        <Column field="title" header="Audit"></Column>
-                        <Column field="audit_type" header="Type"></Column>
+                        <template #empty>
+                            <div class="empty-state">
+                                <i class="pi pi-calendar"></i>
+                                <p>No upcoming audits</p>
+                            </div>
+                        </template>
+                        <Column field="title" :header="$t('common.title')"></Column>
+                        <Column field="audit_type" :header="$t('common.type')"></Column>
                         <Column field="planned_start_date" header="Start Date"></Column>
                     </DataTable>
                 </template>
             </Card>
         </div>
+        
+        <!-- Quick Stats Summary -->
+        <Card class="summary-card">
+            <template #title>GRC Summary</template>
+            <template #content>
+                <div class="summary-grid">
+                    <div class="summary-item">
+                        <span class="summary-label">{{ $t('governance.policies') }}</span>
+                        <span class="summary-value">{{ summary.policies?.total || 0 }}</span>
+                        <span class="summary-sub">{{ summary.policies?.published || 0 }} published</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">{{ $t('risk.register') }}</span>
+                        <span class="summary-value">{{ summary.risks?.total || 0 }}</span>
+                        <span class="summary-sub">{{ summary.risks?.treating || 0 }} under treatment</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">{{ $t('compliance.controls') }}</span>
+                        <span class="summary-value">{{ summary.compliance?.total_controls || 0 }}</span>
+                        <span class="summary-sub">{{ summary.compliance?.implemented || 0 }} implemented</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">{{ $t('compliance.audits') }}</span>
+                        <span class="summary-value">{{ summary.audits?.total || 0 }}</span>
+                        <span class="summary-sub">{{ summary.audits?.completed || 0 }} completed</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">{{ $t('bcm.bcp') }}</span>
+                        <span class="summary-value">{{ summary.bcm?.bc_plans || 0 }}</span>
+                        <span class="summary-sub">{{ summary.bcm?.bc_plans_active || 0 }} active</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">BCM Tests</span>
+                        <span class="summary-value">{{ summary.bcm?.tests_completed || 0 }}</span>
+                        <span class="summary-sub">{{ summary.bcm?.tests_planned || 0 }} planned</span>
+                    </div>
+                </div>
+            </template>
+        </Card>
     </div>
 </template>
 
@@ -143,10 +256,22 @@ const complianceChartData = computed(() => ({
         label: 'Controls',
         data: [
             summary.value.compliance?.implemented || 0,
-            Math.round((summary.value.compliance?.total_controls || 0) * 0.2),
-            Math.round((summary.value.compliance?.total_controls || 0) * 0.2)
+            summary.value.compliance?.partial || 0,
+            summary.value.compliance?.not_implemented || 0
         ],
         backgroundColor: ['#16a34a', '#ca8a04', '#dc2626']
+    }]
+}))
+
+const bcmChartData = computed(() => ({
+    labels: ['BC Plans', 'DR Plans', 'Business Functions'],
+    datasets: [{
+        data: [
+            summary.value.bcm?.bc_plans || 0,
+            summary.value.bcm?.dr_plans || 0,
+            summary.value.bcm?.business_functions || 0
+        ],
+        backgroundColor: ['#0891b2', '#7c3aed', '#0d9488']
     }]
 }))
 
@@ -182,19 +307,17 @@ const getPrioritySeverity = (priority) => {
 onMounted(async () => {
     try {
         // Fetch executive summary
-        const orgId = appStore.currentOrganization?.id
-        if (orgId) {
-            const summaryRes = await dashboardApi.executiveSummary(orgId)
-            summary.value = summaryRes.data
-        }
+        const orgId = appStore.currentOrganization?.id || 1
+        const summaryRes = await dashboardApi.executiveSummary(orgId)
+        summary.value = summaryRes.data
         
         // Fetch my tasks
         const tasksRes = await workflowApi.tasks.myTasks()
-        tasks.value = tasksRes.data
+        tasks.value = tasksRes.data || []
         
         // Fetch upcoming audits
         const auditsRes = await complianceApi.audits.list({ status: 'planned' })
-        audits.value = auditsRes.data.results || auditsRes.data
+        audits.value = auditsRes.data.results || auditsRes.data || []
     } catch (error) {
         console.error('Failed to load dashboard data:', error)
     }
@@ -224,51 +347,56 @@ onMounted(async () => {
 
 .kpi-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 1.5rem;
-    margin-bottom: 2rem;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
 }
 
 .kpi-card {
     background: var(--p-surface-0);
     border-radius: 12px;
-    padding: 1.5rem;
+    padding: 1.25rem;
     display: flex;
     align-items: center;
     gap: 1rem;
     position: relative;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    border-left: 4px solid;
 }
 
 .kpi-icon {
-    width: 56px;
-    height: 56px;
-    border-radius: 12px;
+    width: 48px;
+    height: 48px;
+    border-radius: 10px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.5rem;
+    font-size: 1.25rem;
 }
 
-.kpi-card.risk .kpi-icon {
-    background: rgba(220, 38, 38, 0.1);
-    color: #dc2626;
-}
+.kpi-card.risk { border-color: #dc2626; }
+.kpi-card.risk .kpi-icon { background: rgba(220, 38, 38, 0.1); color: #dc2626; }
 
-.kpi-card.compliance .kpi-icon {
-    background: rgba(22, 163, 74, 0.1);
-    color: #16a34a;
-}
+.kpi-card.compliance { border-color: #16a34a; }
+.kpi-card.compliance .kpi-icon { background: rgba(22, 163, 74, 0.1); color: #16a34a; }
 
-.kpi-card.tasks .kpi-icon {
-    background: rgba(8, 145, 178, 0.1);
-    color: #0891b2;
-}
+.kpi-card.policies { border-color: #2563eb; }
+.kpi-card.policies .kpi-icon { background: rgba(37, 99, 235, 0.1); color: #2563eb; }
 
-.kpi-card.findings .kpi-icon {
-    background: rgba(234, 88, 12, 0.1);
-    color: #ea580c;
-}
+.kpi-card.findings { border-color: #ea580c; }
+.kpi-card.findings .kpi-icon { background: rgba(234, 88, 12, 0.1); color: #ea580c; }
+
+.kpi-card.bcm { border-color: #0891b2; }
+.kpi-card.bcm .kpi-icon { background: rgba(8, 145, 178, 0.1); color: #0891b2; }
+
+.kpi-card.drp { border-color: #7c3aed; }
+.kpi-card.drp .kpi-icon { background: rgba(124, 58, 237, 0.1); color: #7c3aed; }
+
+.kpi-card.functions { border-color: #0d9488; }
+.kpi-card.functions .kpi-icon { background: rgba(13, 148, 136, 0.1); color: #0d9488; }
+
+.kpi-card.tasks { border-color: #ca8a04; }
+.kpi-card.tasks .kpi-icon { background: rgba(202, 138, 4, 0.1); color: #ca8a04; }
 
 .kpi-content {
     display: flex;
@@ -276,59 +404,114 @@ onMounted(async () => {
 }
 
 .kpi-value {
-    font-size: 1.75rem;
+    font-size: 1.5rem;
     font-weight: 700;
     color: var(--p-text-color);
 }
 
 .kpi-label {
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     color: var(--p-text-muted-color);
 }
 
 .kpi-badge {
     position: absolute;
-    top: 1rem;
-    right: 1rem;
-    padding: 0.25rem 0.75rem;
+    top: 0.75rem;
+    right: 0.75rem;
+    padding: 0.2rem 0.6rem;
     border-radius: 20px;
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     font-weight: 600;
 }
 
 :dir(rtl) .kpi-badge {
     right: auto;
-    left: 1rem;
+    left: 0.75rem;
 }
 
-.kpi-badge.critical {
-    background: rgba(220, 38, 38, 0.1);
-    color: #dc2626;
+.kpi-badge.critical { background: rgba(220, 38, 38, 0.1); color: #dc2626; }
+.kpi-badge.warning { background: rgba(234, 88, 12, 0.1); color: #ea580c; }
+.kpi-badge.success { background: rgba(22, 163, 74, 0.1); color: #16a34a; }
+
+.charts-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
 }
 
-.kpi-badge.warning {
-    background: rgba(234, 88, 12, 0.1);
-    color: #ea580c;
-}
-
-.charts-row,
 .tables-row {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
     gap: 1.5rem;
-    margin-bottom: 2rem;
+    margin-bottom: 1.5rem;
 }
 
 .chart-card :deep(.p-card-content) {
-    height: 300px;
+    height: 280px;
 }
 
 .table-card :deep(.p-datatable) {
     font-size: 0.9rem;
 }
 
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 2rem;
+    color: var(--p-text-muted-color);
+}
+
+.empty-state i {
+    font-size: 2rem;
+}
+
+.summary-card {
+    margin-bottom: 1.5rem;
+}
+
+.summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1.5rem;
+}
+
+.summary-item {
+    text-align: center;
+    padding: 1rem;
+    background: var(--p-surface-100);
+    border-radius: 8px;
+}
+
+.summary-label {
+    display: block;
+    font-size: 0.85rem;
+    color: var(--p-text-muted-color);
+    margin-bottom: 0.5rem;
+}
+
+.summary-value {
+    display: block;
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--p-text-color);
+}
+
+.summary-sub {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--p-text-muted-color);
+    margin-top: 0.25rem;
+}
+
 /* Dark mode */
 .dark-mode .kpi-card {
     background: var(--p-surface-800);
+}
+
+.dark-mode .summary-item {
+    background: var(--p-surface-700);
 }
 </style>
