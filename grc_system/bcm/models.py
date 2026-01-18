@@ -122,25 +122,29 @@ class BusinessImpactAnalysis(models.Model):
     business_function = models.ForeignKey(
         BusinessFunction, 
         on_delete=models.CASCADE,
+        null=True, blank=True,
         related_name='bias',
         verbose_name=_('Business Function')
     )
     
     # Assessment details
-    assessment_date = models.DateField(_('Assessment Date'))
+    assessment_date = models.DateField(_('Assessment Date'), null=True, blank=True)
     status = models.CharField(_('Status'), max_length=20, choices=STATUS_CHOICES, default='draft')
     
     # Recovery objectives
     rto_hours = models.PositiveIntegerField(
         _('RTO (Hours)'), 
+        null=True, blank=True,
         help_text=_('هدف وقت الاستعادة - Recovery Time Objective')
     )
     rpo_hours = models.PositiveIntegerField(
         _('RPO (Hours)'), 
+        null=True, blank=True,
         help_text=_('هدف نقطة الاستعادة - Recovery Point Objective')
     )
     mtpd_hours = models.PositiveIntegerField(
         _('MTPD (Hours)'), 
+        null=True, blank=True,
         help_text=_('أقصى فترة توقف مقبولة - Maximum Tolerable Period of Disruption')
     )
     
@@ -161,7 +165,7 @@ class BusinessImpactAnalysis(models.Model):
     )
     
     # Operational impact description
-    operational_impact = models.TextField(_('Operational Impact'))
+    operational_impact = models.TextField(_('Operational Impact'), blank=True)
     operational_impact_ar = models.TextField(_('الأثر التشغيلي'), blank=True)
     
     # Reputational impact

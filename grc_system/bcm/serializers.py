@@ -47,6 +47,10 @@ class BusinessImpactAnalysisSerializer(serializers.ModelSerializer):
             'business_function': {'required': False, 'allow_null': True},
             'assessor': {'required': False, 'allow_null': True},
             'approved_by': {'required': False, 'allow_null': True},
+            'assessment_date': {'required': False, 'allow_null': True},
+            'rto_hours': {'required': False, 'allow_null': True},
+            'rpo_hours': {'required': False, 'allow_null': True},
+            'mtpd_hours': {'required': False, 'allow_null': True},
         }
 
 
