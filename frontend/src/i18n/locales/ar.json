@@ -198,5 +198,32 @@
     "notifications": "الإشعارات",
     "english": "الإنجليزية",
     "arabic": "العربية"
+  },
+  "workflow": {
+    "title": "سير العمل",
+    "dashboard": "لوحة المعلومات",
+    "tasks": "صندوق المهام",
+    "approvals": "الاعتمادات",
+    "taskInbox": "صندوق المهام",
+    "approvalCenter": "مركز الاعتمادات",
+    "myTasks": "مهامي",
+    "myApprovals": "اعتماداتي",
+    "pending": "قيد الانتظار",
+    "inProgress": "قيد التنفيذ",
+    "completed": "مكتمل",
+    "overdue": "متأخر",
+    "approve": "اعتماد",
+    "reject": "رفض",
+    "delegate": "تفويض",
+    "startTask": "بدء المهمة",
+    "completeTask": "إكمال المهمة",
+    "approvalRequired": "مطلوب اعتماد",
+    "taskAssigned": "تم تعيين مهمة",
+    "dueDate": "تاريخ الاستحقاق",
+    "assignedBy": "معين من",
+    "assignedTo": "معين إلى",
+    "completionNotes": "ملاحظات الإكمال",
+    "rejectionReason": "سبب الرفض",
+    "approvalComments": "تعليقات الاعتماد"
   }
 }

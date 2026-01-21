@@ -1,0 +1,93 @@
+[
+    {
+        "model": "core.department",
+        "pk": 1,
+        "fields": {
+            "organization": 1,
+            "name": "Human Resources",
+            "name_ar": "الموارد البشرية",
+            "code": "HR",
+            "description": "Human Resources Department",
+            "description_ar": "إدارة الموارد البشرية",
+            "is_active": true
+        }
+    },
+    {
+        "model": "core.department",
+        "pk": 2,
+        "fields": {
+            "organization": 1,
+            "name": "Finance",
+            "name_ar": "المالية",
+            "code": "FIN",
+            "description": "Finance Department",
+            "description_ar": "الإدارة المالية",
+            "is_active": true
+        }
+    },
+    {
+        "model": "core.department",
+        "pk": 3,
+        "fields": {
+            "organization": 1,
+            "name": "Information Technology",
+            "name_ar": "تقنية المعلومات",
+            "code": "IT",
+            "description": "IT Department",
+            "description_ar": "إدارة تقنية المعلومات",
+            "is_active": true
+        }
+    },
+    {
+        "model": "core.department",
+        "pk": 4,
+        "fields": {
+            "organization": 1,
+            "name": "Operations",
+            "name_ar": "العمليات",
+            "code": "OPS",
+            "description": "Operations Department",
+            "description_ar": "إدارة العمليات",
+            "is_active": true
+        }
+    },
+    {
+        "model": "core.department",
+        "pk": 5,
+        "fields": {
+            "organization": 1,
+            "name": "Legal",
+            "name_ar": "الشؤون القانونية",
+            "code": "LEGAL",
+            "description": "Legal Department",
+            "description_ar": "إدارة الشؤون القانونية",
+            "is_active": true
+        }
+    },
+    {
+        "model": "core.department",
+        "pk": 6,
+        "fields": {
+            "organization": 1,
+            "name": "Risk Management",
+            "name_ar": "إدارة المخاطر",
+            "code": "RISK",
+            "description": "Risk Management Department",
+            "description_ar": "إدارة المخاطر",
+            "is_active": true
+        }
+    },
+    {
+        "model": "core.department",
+        "pk": 7,
+        "fields": {
+            "organization": 1,
+            "name": "Compliance",
+            "name_ar": "الامتثال",
+            "code": "COMP",
+            "description": "Compliance Department",
+            "description_ar": "إدارة الامتثال",
+            "is_active": true
+        }
+    }
+]

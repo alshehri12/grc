@@ -198,5 +198,32 @@
     "notifications": "Notifications",
     "english": "English",
     "arabic": "Arabic"
+  },
+  "workflow": {
+    "title": "Workflow",
+    "dashboard": "Dashboard",
+    "tasks": "Task Inbox",
+    "approvals": "Approvals",
+    "taskInbox": "Task Inbox",
+    "approvalCenter": "Approval Center",
+    "myTasks": "My Tasks",
+    "myApprovals": "My Approvals",
+    "pending": "Pending",
+    "inProgress": "In Progress",
+    "completed": "Completed",
+    "overdue": "Overdue",
+    "approve": "Approve",
+    "reject": "Reject",
+    "delegate": "Delegate",
+    "startTask": "Start Task",
+    "completeTask": "Complete Task",
+    "approvalRequired": "Approval Required",
+    "taskAssigned": "Task Assigned",
+    "dueDate": "Due Date",
+    "assignedBy": "Assigned By",
+    "assignedTo": "Assigned To",
+    "completionNotes": "Completion Notes",
+    "rejectionReason": "Rejection Reason",
+    "approvalComments": "Approval Comments"
   }
 }

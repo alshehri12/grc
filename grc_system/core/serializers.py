@@ -100,9 +100,55 @@ class SettingSerializer(serializers.ModelSerializer):
 
 
 class CurrentUserSerializer(serializers.ModelSerializer):
-    """Current user with full profile."""
+    """Current user with full profile and role info."""
     profile = UserProfileSerializer(read_only=True)
+    is_author = serializers.SerializerMethodField()
+    is_manager = serializers.SerializerMethodField()
+    is_admin = serializers.SerializerMethodField()
+    department = serializers.SerializerMethodField()
+    roles = serializers.SerializerMethodField()
     
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'profile']
+        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'is_superuser',
+                  'profile', 'is_author', 'is_manager', 'is_admin', 'department', 'roles']
+    
+    def get_is_author(self, obj):
+        try:
+            return obj.profile.roles.filter(code='author').exists()
+        except Exception:
+            return False
+    
+    def get_is_manager(self, obj):
+        try:
+            return obj.profile.roles.filter(code='manager').exists()
+        except Exception:
+            return False
+    
+    def get_is_admin(self, obj):
+        if obj.is_superuser:
+            return True
+        try:
+            return obj.profile.roles.filter(code='admin').exists()
+        except Exception:
+            return False
+    
+    def get_department(self, obj):
+        try:
+            if obj.profile.department:
+                return {
+                    'id': obj.profile.department.id,
+                    'name': obj.profile.department.name,
+                    'name_ar': obj.profile.department.name_ar,
+                    'code': obj.profile.department.code,
+                    'manager_id': obj.profile.department.manager_id
+                }
+        except Exception:
+            pass
+        return None
+    
+    def get_roles(self, obj):
+        try:
+            return list(obj.profile.roles.values_list('code', flat=True))
+        except Exception:
+            return []

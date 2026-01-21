@@ -113,6 +113,29 @@
                             <span v-if="!appStore.sidebarCollapsed">{{ $t('compliance.evidence') }}</span>
                         </router-link>
                     </li>
+                    
+                    <!-- Workflow -->
+                    <li class="menu-section" v-if="!appStore.sidebarCollapsed">
+                        {{ $t('workflow.title') || 'Workflow' }}
+                    </li>
+                    <li>
+                        <router-link to="/workflow" class="menu-item">
+                            <i class="pi pi-chart-line"></i>
+                            <span v-if="!appStore.sidebarCollapsed">{{ $t('workflow.dashboard') || 'Dashboard' }}</span>
+                        </router-link>
+                    </li>
+                    <li>
+                        <router-link to="/workflow/tasks" class="menu-item">
+                            <i class="pi pi-inbox"></i>
+                            <span v-if="!appStore.sidebarCollapsed">{{ $t('workflow.tasks') || 'Task Inbox' }}</span>
+                        </router-link>
+                    </li>
+                    <li>
+                        <router-link to="/workflow/approvals" class="menu-item">
+                            <i class="pi pi-check-square"></i>
+                            <span v-if="!appStore.sidebarCollapsed">{{ $t('workflow.approvals') || 'Approvals' }}</span>
+                        </router-link>
+                    </li>
                 </ul>
             </nav>
         </aside>

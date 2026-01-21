@@ -168,6 +168,7 @@ class Risk(models.Model):
     """
     STATUS_CHOICES = [
         ('identified', _('Identified')),
+        ('pending_approval', _('Pending Approval')),
         ('assessed', _('Assessed')),
         ('treating', _('Under Treatment')),
         ('monitoring', _('Monitoring')),

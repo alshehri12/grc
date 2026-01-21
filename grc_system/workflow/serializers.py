@@ -2,7 +2,7 @@
 Workflow app serializers.
 """
 from rest_framework import serializers
-from .models import WorkflowTemplate, WorkflowStep, WorkflowInstance, Approval, Task
+from .models import WorkflowTemplate, WorkflowStep, WorkflowInstance, Approval, Task, WorkflowHistory
 
 
 class WorkflowStepSerializer(serializers.ModelSerializer):
@@ -20,10 +20,22 @@ class WorkflowTemplateSerializer(serializers.ModelSerializer):
         read_only_fields = ['created_at', 'updated_at']
 
 
+class WorkflowHistorySerializer(serializers.ModelSerializer):
+    performed_by_name = serializers.CharField(source='performed_by.get_full_name', read_only=True)
+    action_display = serializers.CharField(source='get_action_display', read_only=True)
+    
+    class Meta:
+        model = WorkflowHistory
+        fields = ['id', 'action', 'action_display', 'performed_by', 'performed_by_name', 
+                  'details', 'step_number', 'created_at']
+        read_only_fields = ['created_at']
+
+
 class WorkflowInstanceSerializer(serializers.ModelSerializer):
     template_name = serializers.CharField(source='template.name', read_only=True)
     initiated_by_name = serializers.CharField(source='initiated_by.get_full_name', read_only=True)
     is_overdue = serializers.BooleanField(read_only=True)
+    history = WorkflowHistorySerializer(many=True, read_only=True)
     
     class Meta:
         model = WorkflowInstance
@@ -31,15 +43,51 @@ class WorkflowInstanceSerializer(serializers.ModelSerializer):
         read_only_fields = ['started_at', 'completed_at']
 
 
+class WorkflowInstanceMinimalSerializer(serializers.ModelSerializer):
+    """Minimal serializer for nested use in ApprovalSerializer."""
+    template_name = serializers.CharField(source='template.name', read_only=True)
+    initiated_by_name = serializers.CharField(source='initiated_by.get_full_name', read_only=True)
+    initiated_by_department = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = WorkflowInstance
+        fields = ['id', 'template_name', 'object_title', 'status', 'current_step', 
+                  'initiated_by', 'initiated_by_name', 'initiated_by_department']
+    
+    def get_initiated_by_department(self, obj):
+        if obj.initiated_by:
+            try:
+                profile = obj.initiated_by.profile
+                if profile.department:
+                    return {
+                        'id': profile.department.id,
+                        'name': profile.department.name,
+                        'name_ar': profile.department.name_ar
+                    }
+            except Exception:
+                pass
+        return None
+
+
 class ApprovalSerializer(serializers.ModelSerializer):
     workflow_title = serializers.CharField(source='workflow_instance.object_title', read_only=True)
+    workflow_instance = WorkflowInstanceMinimalSerializer(read_only=True)
     step_name = serializers.CharField(source='step.name', read_only=True)
+    step = WorkflowStepSerializer(read_only=True)
     assignee_name = serializers.CharField(source='assignee.get_full_name', read_only=True)
+    decided_by_name = serializers.CharField(source='decided_by.get_full_name', read_only=True)
+    is_overdue = serializers.SerializerMethodField()
     
     class Meta:
         model = Approval
         fields = '__all__'
         read_only_fields = ['created_at']
+    
+    def get_is_overdue(self, obj):
+        from django.utils import timezone
+        if obj.due_date and obj.status == 'pending':
+            return timezone.now() > obj.due_date
+        return False
 
 
 class TaskSerializer(serializers.ModelSerializer):

@@ -1,0 +1,56 @@
+[
+    {
+        "model": "core.role",
+        "pk": 1,
+        "fields": {
+            "name": "Author",
+            "name_ar": "مؤلف",
+            "code": "author",
+            "role_type": "grc",
+            "description": "Can create and edit content. All content requires manager approval before publication.",
+            "description_ar": "يمكنه إنشاء وتعديل المحتوى. يتطلب جميع المحتوى موافقة المدير قبل النشر.",
+            "permissions": {
+                "governance": {"policy": ["create", "read", "update"], "procedure": ["create", "read", "update"], "document": ["create", "read", "update"]},
+                "risk": {"risk": ["create", "read", "update"], "asset": ["create", "read", "update"]},
+                "bcm": {"function": ["create", "read", "update"], "plan": ["create", "read", "update"], "dr_plan": ["create", "read", "update"], "test": ["create", "read", "update"]},
+                "compliance": {"control": ["create", "read", "update"], "audit": ["create", "read", "update"], "evidence": ["create", "read", "update"]}
+            },
+            "is_active": true
+        }
+    },
+    {
+        "model": "core.role",
+        "pk": 2,
+        "fields": {
+            "name": "Manager",
+            "name_ar": "مدير",
+            "code": "manager",
+            "role_type": "grc",
+            "description": "Can approve content created by authors. Full access to department content.",
+            "description_ar": "يمكنه الموافقة على المحتوى الذي أنشأه المؤلفون. وصول كامل لمحتوى الإدارة.",
+            "permissions": {
+                "governance": {"policy": ["create", "read", "update", "delete", "approve"], "procedure": ["create", "read", "update", "delete", "approve"], "document": ["create", "read", "update", "delete", "approve"]},
+                "risk": {"risk": ["create", "read", "update", "delete", "approve"], "asset": ["create", "read", "update", "delete"]},
+                "bcm": {"function": ["create", "read", "update", "delete", "approve"], "plan": ["create", "read", "update", "delete", "approve"], "dr_plan": ["create", "read", "update", "delete", "approve"], "test": ["create", "read", "update", "delete", "approve"]},
+                "compliance": {"control": ["create", "read", "update", "delete", "approve"], "audit": ["create", "read", "update", "delete", "approve"], "evidence": ["create", "read", "update", "delete"]}
+            },
+            "is_active": true
+        }
+    },
+    {
+        "model": "core.role",
+        "pk": 3,
+        "fields": {
+            "name": "Admin",
+            "name_ar": "مسؤول النظام",
+            "code": "admin",
+            "role_type": "system",
+            "description": "Full system access including user management and settings.",
+            "description_ar": "وصول كامل للنظام بما في ذلك إدارة المستخدمين والإعدادات.",
+            "permissions": {
+                "all": true
+            },
+            "is_active": true
+        }
+    }
+]

@@ -6,6 +6,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter, OrderingFilter
+from django.db.models import Q
 
 from .models import PolicyCategory, Policy, PolicyVersion, PolicyAcknowledgment, Procedure, Document
 from .serializers import (
@@ -14,6 +15,38 @@ from .serializers import (
     ProcedureSerializer, ProcedureListSerializer,
     DocumentSerializer, DocumentListSerializer
 )
+
+
+def user_is_manager(user):
+    """Check if user has the Manager role."""
+    if not user or not user.is_authenticated:
+        return False
+    try:
+        return user.profile.roles.filter(code='manager').exists()
+    except Exception:
+        return False
+
+
+def user_is_admin(user):
+    """Check if user is admin."""
+    if not user:
+        return False
+    if user.is_superuser:
+        return True
+    try:
+        return user.profile.roles.filter(code='admin').exists()
+    except Exception:
+        return False
+
+
+def get_user_department(user):
+    """Get user's department."""
+    if not user:
+        return None
+    try:
+        return user.profile.department
+    except Exception:
+        return None
 
 
 class PolicyCategoryViewSet(viewsets.ModelViewSet):
@@ -34,10 +67,45 @@ class PolicyViewSet(viewsets.ModelViewSet):
     ordering_fields = ['updated_at', 'effective_date', 'review_date']
     ordering = ['-updated_at']
     
+    def get_queryset(self):
+        """
+        Filter queryset based on user role:
+        - Admin: See everything
+        - Manager: See approved items + pending items from their department
+        - Author: See approved items + their own pending items
+        """
+        qs = super().get_queryset()
+        user = self.request.user
+        
+        if not user.is_authenticated:
+            return qs.filter(status='approved')
+        
+        if user_is_admin(user):
+            return qs
+        
+        if user_is_manager(user):
+            dept = get_user_department(user)
+            if dept:
+                # Manager sees: approved OR (pending + from their department)
+                return qs.filter(
+                    Q(status='approved') | 
+                    Q(status='pending_approval', department=dept) |
+                    Q(status='pending_approval', created_by__profile__department=dept) |
+                    Q(created_by=user)
+                ).distinct()
+            return qs.filter(Q(status='approved') | Q(created_by=user))
+        
+        # Author: see approved + own items
+        return qs.filter(Q(status='approved') | Q(created_by=user))
+    
     def get_serializer_class(self):
         if self.action == 'list':
             return PolicyListSerializer
         return PolicySerializer
+    
+    def perform_create(self, serializer):
+        """Set created_by on creation."""
+        serializer.save(created_by=self.request.user)
     
     @action(detail=True, methods=['post'])
     def submit_for_review(self, request, pk=None):
@@ -69,6 +137,25 @@ class PolicyViewSet(viewsets.ModelViewSet):
     def pending_review(self, request):
         """Get policies pending review."""
         policies = self.queryset.filter(status='pending_review')
+        serializer = PolicyListSerializer(policies, many=True)
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'])
+    def pending_approval(self, request):
+        """Get policies pending approval for the current manager."""
+        user = request.user
+        if not user_is_manager(user):
+            return Response({'error': 'Only managers can view pending approvals'}, status=403)
+        
+        dept = get_user_department(user)
+        if dept:
+            policies = self.queryset.filter(
+                Q(status='pending_approval') &
+                (Q(department=dept) | Q(created_by__profile__department=dept))
+            )
+        else:
+            policies = self.queryset.none()
+        
         serializer = PolicyListSerializer(policies, many=True)
         return Response(serializer.data)
 
@@ -119,10 +206,36 @@ class ProcedureViewSet(viewsets.ModelViewSet):
     ordering_fields = ['updated_at', 'effective_date']
     ordering = ['-updated_at']
     
+    def get_queryset(self):
+        qs = super().get_queryset()
+        user = self.request.user
+        
+        if not user.is_authenticated:
+            return qs.filter(status='approved')
+        
+        if user_is_admin(user):
+            return qs
+        
+        if user_is_manager(user):
+            dept = get_user_department(user)
+            if dept:
+                return qs.filter(
+                    Q(status='approved') | 
+                    Q(status='pending_approval', department=dept) |
+                    Q(status='pending_approval', created_by__profile__department=dept) |
+                    Q(created_by=user)
+                ).distinct()
+            return qs.filter(Q(status='approved') | Q(created_by=user))
+        
+        return qs.filter(Q(status='approved') | Q(created_by=user))
+    
     def get_serializer_class(self):
         if self.action == 'list':
             return ProcedureListSerializer
         return ProcedureSerializer
+    
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
 
 
 class DocumentViewSet(viewsets.ModelViewSet):
@@ -135,7 +248,33 @@ class DocumentViewSet(viewsets.ModelViewSet):
     ordering_fields = ['updated_at', 'effective_date']
     ordering = ['-updated_at']
     
+    def get_queryset(self):
+        qs = super().get_queryset()
+        user = self.request.user
+        
+        if not user.is_authenticated:
+            return qs.filter(status='approved')
+        
+        if user_is_admin(user):
+            return qs
+        
+        if user_is_manager(user):
+            dept = get_user_department(user)
+            if dept:
+                return qs.filter(
+                    Q(status='approved') | 
+                    Q(status='pending_approval', department=dept) |
+                    Q(status='pending_approval', created_by__profile__department=dept) |
+                    Q(created_by=user)
+                ).distinct()
+            return qs.filter(Q(status='approved') | Q(created_by=user))
+        
+        return qs.filter(Q(status='approved') | Q(created_by=user))
+    
     def get_serializer_class(self):
         if self.action == 'list':
             return DocumentListSerializer
         return DocumentSerializer
+    
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)

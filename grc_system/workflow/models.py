@@ -351,3 +351,60 @@ class Task(models.Model):
         if self.due_date and self.status in ['pending', 'in_progress']:
             return timezone.now() > self.due_date
         return False
+
+
+class WorkflowHistory(models.Model):
+    """
+    سجل سير العمل - Audit trail for workflow actions
+    Records all actions taken on a workflow for accountability and debugging.
+    """
+    ACTION_TYPES = [
+        ('workflow_started', _('Workflow Started')),
+        ('workflow_completed', _('Workflow Completed')),
+        ('workflow_rejected', _('Workflow Rejected')),
+        ('workflow_cancelled', _('Workflow Cancelled')),
+        ('approval_decision', _('Approval Decision')),
+        ('approval_delegated', _('Approval Delegated')),
+        ('task_assigned', _('Task Assigned')),
+        ('task_completed', _('Task Completed')),
+        ('escalation', _('Escalation')),
+        ('reminder_sent', _('Reminder Sent')),
+        ('comment_added', _('Comment Added')),
+    ]
+    
+    workflow_instance = models.ForeignKey(
+        WorkflowInstance,
+        on_delete=models.CASCADE,
+        related_name='history',
+        verbose_name=_('Workflow Instance')
+    )
+    
+    action = models.CharField(_('Action'), max_length=30, choices=ACTION_TYPES)
+    performed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='workflow_actions',
+        verbose_name=_('Performed By')
+    )
+    
+    details = models.TextField(_('Details'), blank=True)
+    step_number = models.PositiveIntegerField(_('Step Number'), null=True, blank=True)
+    
+    # Metadata
+    ip_address = models.GenericIPAddressField(_('IP Address'), null=True, blank=True)
+    user_agent = models.CharField(_('User Agent'), max_length=500, blank=True)
+    
+    created_at = models.DateTimeField(_('Created At'), auto_now_add=True)
+    
+    class Meta:
+        verbose_name = _('Workflow History')
+        verbose_name_plural = _('Workflow History')
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['workflow_instance', '-created_at']),
+        ]
+    
+    def __str__(self):
+        return f"{self.workflow_instance} - {self.action} at {self.created_at}"

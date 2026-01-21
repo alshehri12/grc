@@ -50,6 +50,51 @@ class ControlViewSet(viewsets.ModelViewSet):
             return ControlListSerializer
         return ControlSerializer
     
+    def create(self, request, *args, **kwargs):
+        # #region agent log
+        import json
+        from django.utils import timezone
+        log_entry = {
+            "location": "ControlViewSet.create:entry",
+            "message": "Create control request received",
+            "data": {"request_data": request.data},
+            "timestamp": timezone.now().timestamp() * 1000,
+            "sessionId": "debug-session",
+            "hypothesisId": "CONTROL"
+        }
+        with open('c:\\Users\\aalshehre\\GRC\\grc_system\\grc\\.cursor\\debug.log', 'a') as f:
+            f.write(json.dumps(log_entry) + '\n')
+        # #endregion
+        serializer = self.get_serializer(data=request.data)
+        if not serializer.is_valid():
+            # #region agent log
+            log_entry = {
+                "location": "ControlViewSet.create:validation_error",
+                "message": "Serializer validation failed",
+                "data": {"errors": serializer.errors, "data": serializer.initial_data},
+                "timestamp": timezone.now().timestamp() * 1000,
+                "sessionId": "debug-session",
+                "hypothesisId": "CONTROL"
+            }
+            with open('c:\\Users\\aalshehre\\GRC\\grc_system\\grc\\.cursor\\debug.log', 'a') as f:
+                f.write(json.dumps(log_entry) + '\n')
+            # #endregion
+            return Response(serializer.errors, status=400)
+        control = serializer.save()
+        # #region agent log
+        log_entry = {
+            "location": "ControlViewSet.create:success",
+            "message": "Control created successfully",
+            "data": {"id": control.id},
+            "timestamp": timezone.now().timestamp() * 1000,
+            "sessionId": "debug-session",
+            "hypothesisId": "CONTROL"
+        }
+        with open('c:\\Users\\aalshehre\\GRC\\grc_system\\grc\\.cursor\\debug.log', 'a') as f:
+            f.write(json.dumps(log_entry) + '\n')
+        # #endregion
+        return Response(self.get_serializer(control).data, status=201)
+    
     @action(detail=False, methods=['get'])
     def by_framework(self, request):
         """Get controls grouped by framework and domain."""
@@ -117,6 +162,51 @@ class AuditViewSet(viewsets.ModelViewSet):
         if self.action == 'list':
             return AuditListSerializer
         return AuditSerializer
+    
+    def create(self, request, *args, **kwargs):
+        # #region agent log
+        import json
+        from django.utils import timezone
+        log_entry = {
+            "location": "AuditViewSet.create:entry",
+            "message": "Create audit request received",
+            "data": {"request_data": request.data},
+            "timestamp": timezone.now().timestamp() * 1000,
+            "sessionId": "debug-session",
+            "hypothesisId": "AUDIT"
+        }
+        with open('c:\\Users\\aalshehre\\GRC\\grc_system\\grc\\.cursor\\debug.log', 'a') as f:
+            f.write(json.dumps(log_entry) + '\n')
+        # #endregion
+        serializer = self.get_serializer(data=request.data)
+        if not serializer.is_valid():
+            # #region agent log
+            log_entry = {
+                "location": "AuditViewSet.create:validation_error",
+                "message": "Serializer validation failed",
+                "data": {"errors": serializer.errors, "data": serializer.initial_data},
+                "timestamp": timezone.now().timestamp() * 1000,
+                "sessionId": "debug-session",
+                "hypothesisId": "AUDIT"
+            }
+            with open('c:\\Users\\aalshehre\\GRC\\grc_system\\grc\\.cursor\\debug.log', 'a') as f:
+                f.write(json.dumps(log_entry) + '\n')
+            # #endregion
+            return Response(serializer.errors, status=400)
+        audit = serializer.save()
+        # #region agent log
+        log_entry = {
+            "location": "AuditViewSet.create:success",
+            "message": "Audit created successfully",
+            "data": {"id": audit.id},
+            "timestamp": timezone.now().timestamp() * 1000,
+            "sessionId": "debug-session",
+            "hypothesisId": "AUDIT"
+        }
+        with open('c:\\Users\\aalshehre\\GRC\\grc_system\\grc\\.cursor\\debug.log', 'a') as f:
+            f.write(json.dumps(log_entry) + '\n')
+        # #endregion
+        return Response(self.get_serializer(audit).data, status=201)
     
     @action(detail=True, methods=['post'])
     def start(self, request, pk=None):

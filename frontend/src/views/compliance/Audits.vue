@@ -44,7 +44,7 @@
                             <Tag :severity="getStatusSeverity(data.status)">{{ data.status }}</Tag>
                         </template>
                     </Column>
-                    <Column field="scheduled_start" header="Start Date"></Column>
+                    <Column field="planned_start_date" header="Start Date"></Column>
                     <Column field="lead_auditor_name" header="Lead Auditor"></Column>
                     <Column header="Actions" style="width: 150px">
                         <template #body="{ data }">
@@ -110,12 +110,12 @@
                 
                 <div class="form-row">
                     <div class="form-field">
-                        <label>Scheduled Start</label>
-                        <Calendar v-model="form.scheduled_start" dateFormat="yy-mm-dd" showIcon />
+                        <label>Planned Start Date <span class="required">*</span></label>
+                        <Calendar v-model="form.planned_start_date" dateFormat="yy-mm-dd" showIcon />
                     </div>
                     <div class="form-field">
-                        <label>Scheduled End</label>
-                        <Calendar v-model="form.scheduled_end" dateFormat="yy-mm-dd" showIcon />
+                        <label>Planned End Date <span class="required">*</span></label>
+                        <Calendar v-model="form.planned_end_date" dateFormat="yy-mm-dd" showIcon />
                     </div>
                 </div>
                 
@@ -218,8 +218,8 @@ const form = ref({
     scope: '',
     audit_type: 'internal',
     status: 'planned',
-    scheduled_start: null,
-    scheduled_end: null
+    planned_start_date: null,
+    planned_end_date: null
 })
 
 const auditTypeOptions = [
@@ -256,8 +256,8 @@ const resetForm = () => {
         scope: '',
         audit_type: 'internal',
         status: 'planned',
-        scheduled_start: null,
-        scheduled_end: null
+        planned_start_date: null,
+        planned_end_date: null
     }
 }
 
@@ -293,16 +293,26 @@ const loadAudits = async () => {
 }
 
 const saveAudit = async () => {
-    if (!form.value.audit_id || !form.value.title) {
-        toast.add({ severity: 'warn', summary: 'Validation', detail: 'Please fill Audit ID and Title', life: 3000 })
+    if (!form.value.audit_id || !form.value.title || !form.value.planned_start_date || !form.value.planned_end_date) {
+        toast.add({ severity: 'warn', summary: 'Validation', detail: 'Please fill Audit ID, Title, and Start/End Dates', life: 3000 })
         return
     }
     
     saving.value = true
     try {
+        // Format dates properly for Django (YYYY-MM-DD)
+        const formatDate = (date) => {
+            if (!date) return null;
+            if (typeof date === 'string') return date.split('T')[0];
+            if (date instanceof Date) return date.toISOString().split('T')[0];
+            return null;
+        };
+        
         const data = {
             ...form.value,
-            organization: appStore.currentOrganization?.id || 1
+            organization: appStore.currentOrganization?.id || 1,
+            planned_start_date: formatDate(form.value.planned_start_date),
+            planned_end_date: formatDate(form.value.planned_end_date)
         }
         
         if (isEdit.value && selectedAudit.value?.id) {
@@ -317,7 +327,24 @@ const saveAudit = async () => {
         await loadAudits()
     } catch (error) {
         console.error('Failed to save audit:', error)
-        toast.add({ severity: 'error', summary: 'Error', detail: error.response?.data?.detail || 'Failed to save audit', life: 3000 })
+        // Extract user-friendly error message
+        let errorMsg = 'Failed to save audit'
+        if (error.response?.data) {
+            const data = error.response.data
+            if (data.non_field_errors?.some(e => e.includes('unique')) || data.audit_id?.some(e => e.includes('unique') || e.includes('exists'))) {
+                errorMsg = 'This Audit ID already exists. Please enter a different ID.'
+            } else if (data.detail) {
+                errorMsg = data.detail
+            } else if (data.non_field_errors) {
+                errorMsg = data.non_field_errors.join(', ')
+            } else {
+                const firstKey = Object.keys(data)[0]
+                if (firstKey && Array.isArray(data[firstKey])) {
+                    errorMsg = `${firstKey}: ${data[firstKey].join(', ')}`
+                }
+            }
+        }
+        toast.add({ severity: 'warn', summary: 'Duplicate ID', detail: errorMsg, life: 6000 })
     } finally {
         saving.value = false
     }

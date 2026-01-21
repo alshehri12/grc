@@ -1,6 +1,8 @@
 """
 Risk app views.
 """
+import json
+import time
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -14,6 +16,16 @@ from .serializers import (
     RiskCategorySerializer, RiskSerializer, RiskListSerializer,
     RiskAssessmentSerializer, RiskTreatmentSerializer, RiskAcceptanceSerializer
 )
+
+# region agent log
+DEBUG_LOG_PATH = r'c:\Users\aalshehre\GRC\grc_system\grc\.cursor\debug.log'
+def debug_log(location, message, data, hypothesis_id):
+    try:
+        log_entry = json.dumps({'location': location, 'message': message, 'data': data, 'timestamp': int(time.time() * 1000), 'sessionId': 'debug-session', 'hypothesisId': hypothesis_id})
+        with open(DEBUG_LOG_PATH, 'a', encoding='utf-8') as f:
+            f.write(log_entry + '\n')
+    except: pass
+# endregion
 
 
 class AssetCategoryViewSet(viewsets.ModelViewSet):
@@ -62,6 +74,24 @@ class RiskViewSet(viewsets.ModelViewSet):
         if self.action == 'list':
             return RiskListSerializer
         return RiskSerializer
+    
+    # region agent log
+    def create(self, request, *args, **kwargs):
+        debug_log('RiskViewSet.create:entry', 'Create risk request received', {'request_data': request.data, 'user': str(request.user)}, 'RISK')
+        serializer = self.get_serializer(data=request.data)
+        if not serializer.is_valid():
+            debug_log('RiskViewSet.create:validation_error', 'Serializer validation failed', {'errors': serializer.errors, 'data': request.data}, 'RISK')
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        debug_log('RiskViewSet.create:validation_passed', 'Serializer validation passed', {}, 'RISK')
+        try:
+            self.perform_create(serializer)
+            debug_log('RiskViewSet.create:success', 'Risk created successfully', {'risk_id': serializer.data.get('id')}, 'RISK')
+            headers = self.get_success_headers(serializer.data)
+            return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+        except Exception as e:
+            debug_log('RiskViewSet.create:exception', 'Exception during risk creation', {'error': str(e), 'error_type': type(e).__name__}, 'RISK')
+            raise
+    # endregion
     
     @action(detail=False, methods=['get'])
     def matrix(self, request):

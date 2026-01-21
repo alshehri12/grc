@@ -98,7 +98,9 @@ class Control(models.Model):
     
     domain = models.ForeignKey(
         ControlDomain, 
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name='controls',
         verbose_name=_('Domain')
     )
@@ -261,6 +263,8 @@ class Audit(models.Model):
     ]
     
     STATUS_CHOICES = [
+        ('draft', _('Draft')),
+        ('pending_approval', _('Pending Approval')),
         ('planned', _('Planned')),
         ('in_progress', _('In Progress')),
         ('fieldwork', _('Fieldwork')),

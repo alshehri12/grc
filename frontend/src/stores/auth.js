@@ -20,7 +20,13 @@ export const useAuthStore = defineStore('auth', {
                     : state.user.username
             }
             return ''
-        }
+        },
+        isAuthor: (state) => state.user?.is_author || false,
+        isManager: (state) => state.user?.is_manager || false,
+        isAdmin: (state) => state.user?.is_admin || state.user?.is_superuser || false,
+        userRoles: (state) => state.user?.roles || [],
+        userDepartment: (state) => state.user?.department || null,
+        canApprove: (state) => state.user?.is_manager || state.user?.is_admin || state.user?.is_superuser || false
     },
     
     actions: {

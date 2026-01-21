@@ -1,0 +1,130 @@
+[
+    {
+        "model": "notifications.notificationtemplate",
+        "pk": 1,
+        "fields": {
+            "code": "task-assigned",
+            "name": "Task Assigned",
+            "name_ar": "تم تعيين مهمة",
+            "event_type": "task_assigned",
+            "channel": "in_app",
+            "subject": "New Task Assigned: {task_title}",
+            "body": "You have been assigned a new task.\n\nTask: {task_title}\nType: {task_type}\nPriority: {priority}\nDue Date: {due_date}\n\nPlease review and complete the task before the deadline.",
+            "subject_ar": "تم تعيين مهمة جديدة: {task_title}",
+            "body_ar": "تم تعيين مهمة جديدة لك.\n\nالمهمة: {task_title}\nالنوع: {task_type}\nالأولوية: {priority}\nتاريخ الاستحقاق: {due_date}\n\nيرجى مراجعة وإكمال المهمة قبل الموعد المحدد.",
+            "is_active": true
+        }
+    },
+    {
+        "model": "notifications.notificationtemplate",
+        "pk": 2,
+        "fields": {
+            "code": "task-due",
+            "name": "Task Due Soon",
+            "name_ar": "اقتراب موعد المهمة",
+            "event_type": "task_due",
+            "channel": "in_app",
+            "subject": "Reminder: Task Due Tomorrow - {task_title}",
+            "body": "This is a reminder that your task is due tomorrow.\n\nTask: {task_title}\nDue Date: {due_date}\n\nPlease complete the task before the deadline.",
+            "subject_ar": "تذكير: موعد المهمة غداً - {task_title}",
+            "body_ar": "هذا تذكير بأن موعد مهمتك غداً.\n\nالمهمة: {task_title}\nتاريخ الاستحقاق: {due_date}\n\nيرجى إكمال المهمة قبل الموعد المحدد.",
+            "is_active": true
+        }
+    },
+    {
+        "model": "notifications.notificationtemplate",
+        "pk": 3,
+        "fields": {
+            "code": "task-overdue",
+            "name": "Task Overdue",
+            "name_ar": "المهمة متأخرة",
+            "event_type": "task_overdue",
+            "channel": "in_app",
+            "subject": "OVERDUE: Task Past Due Date - {task_title}",
+            "body": "Your task is now overdue and requires immediate attention.\n\nTask: {task_title}\nOriginal Due Date: {due_date}\n\nPlease complete this task as soon as possible.",
+            "subject_ar": "متأخر: المهمة تجاوزت الموعد المحدد - {task_title}",
+            "body_ar": "مهمتك الآن متأخرة وتتطلب اهتمامًا فوريًا.\n\nالمهمة: {task_title}\nتاريخ الاستحقاق الأصلي: {due_date}\n\nيرجى إكمال هذه المهمة في أقرب وقت ممكن.",
+            "is_active": true
+        }
+    },
+    {
+        "model": "notifications.notificationtemplate",
+        "pk": 4,
+        "fields": {
+            "code": "approval-required",
+            "name": "Approval Required",
+            "name_ar": "مطلوب اعتماد",
+            "event_type": "approval_required",
+            "channel": "in_app",
+            "subject": "Approval Required: {item_title}",
+            "body": "You have a pending approval request.\n\nWorkflow: {workflow_name}\nItem: {item_title}\nStep: {step_name}\nDue Date: {due_date}\n\n{instructions}\n\nPlease review and take action.",
+            "subject_ar": "مطلوب اعتماد: {item_title}",
+            "body_ar": "لديك طلب اعتماد معلق.\n\nسير العمل: {workflow_name}\nالعنصر: {item_title}\nالخطوة: {step_name}\nتاريخ الاستحقاق: {due_date}\n\n{instructions}\n\nيرجى المراجعة واتخاذ الإجراء المناسب.",
+            "is_active": true
+        }
+    },
+    {
+        "model": "notifications.notificationtemplate",
+        "pk": 5,
+        "fields": {
+            "code": "approval-completed",
+            "name": "Approval Completed",
+            "name_ar": "تم الاعتماد",
+            "event_type": "approval_completed",
+            "channel": "in_app",
+            "subject": "Approved: {item_title}",
+            "body": "Your request has been approved.\n\nItem: {item_title}\nApproved By: {approver_name}\nComments: {comments}",
+            "subject_ar": "تم الاعتماد: {item_title}",
+            "body_ar": "تم اعتماد طلبك.\n\nالعنصر: {item_title}\nتم الاعتماد بواسطة: {approver_name}\nالتعليقات: {comments}",
+            "is_active": true
+        }
+    },
+    {
+        "model": "notifications.notificationtemplate",
+        "pk": 6,
+        "fields": {
+            "code": "approval-rejected",
+            "name": "Approval Rejected",
+            "name_ar": "تم الرفض",
+            "event_type": "approval_rejected",
+            "channel": "in_app",
+            "subject": "Rejected: {item_title}",
+            "body": "Your request has been rejected.\n\nItem: {item_title}\nRejected By: {rejector_name}\nReason: {comments}",
+            "subject_ar": "تم الرفض: {item_title}",
+            "body_ar": "تم رفض طلبك.\n\nالعنصر: {item_title}\nتم الرفض بواسطة: {rejector_name}\nالسبب: {comments}",
+            "is_active": true
+        }
+    },
+    {
+        "model": "notifications.notificationtemplate",
+        "pk": 7,
+        "fields": {
+            "code": "escalation-notice",
+            "name": "Escalation Notice",
+            "name_ar": "إشعار التصعيد",
+            "event_type": "escalation",
+            "channel": "in_app",
+            "subject": "Escalation: {item_title}",
+            "body": "An item has been escalated to you due to SLA breach.\n\nItem: {item_title}\nReason: {reason}\nLevel: {level}\nOriginally assigned to: {original_assignee}\n\nPlease review and take appropriate action.",
+            "subject_ar": "تصعيد: {item_title}",
+            "body_ar": "تم تصعيد عنصر إليك بسبب تجاوز مستوى الخدمة المتفق عليه.\n\nالعنصر: {item_title}\nالسبب: {reason}\nالمستوى: {level}\nتم تعيينه أصلاً إلى: {original_assignee}\n\nيرجى المراجعة واتخاذ الإجراء المناسب.",
+            "is_active": true
+        }
+    },
+    {
+        "model": "notifications.notificationtemplate",
+        "pk": 8,
+        "fields": {
+            "code": "policy-review-due",
+            "name": "Policy Review Due",
+            "name_ar": "موعد مراجعة السياسة",
+            "event_type": "policy_review",
+            "channel": "in_app",
+            "subject": "Policy Review Due: {policy_title}",
+            "body": "A policy is due for review.\n\nPolicy: {policy_title}\nPolicy ID: {policy_id}\nReview Date: {review_date}\n\nPlease review the policy and update if necessary.",
+            "subject_ar": "موعد مراجعة السياسة: {policy_title}",
+            "body_ar": "سياسة مستحقة للمراجعة.\n\nالسياسة: {policy_title}\nرقم السياسة: {policy_id}\nتاريخ المراجعة: {review_date}\n\nيرجى مراجعة السياسة وتحديثها إذا لزم الأمر.",
+            "is_active": true
+        }
+    }
+]

@@ -1,0 +1,189 @@
+[
+    {
+        "model": "workflow.workflowtemplate",
+        "pk": 1,
+        "fields": {
+            "name": "Content Approval",
+            "name_ar": "اعتماد المحتوى",
+            "code": "content-approval",
+            "workflow_type": "approval",
+            "description": "Manager approval workflow for all GRC content created by authors",
+            "description_ar": "سير عمل اعتماد المدير لجميع محتوى GRC الذي أنشأه المؤلفون",
+            "applicable_models": ["governance.policy", "governance.procedure", "risk.risk", "bcm.businessfunction", "bcm.bcplan", "bcm.disasterrecoveryplan", "bcm.bcmtest", "compliance.control", "compliance.audit"],
+            "default_sla_days": 3,
+            "escalation_enabled": true,
+            "escalation_days": 2,
+            "is_active": true
+        }
+    },
+    {
+        "model": "workflow.workflowstep",
+        "pk": 100,
+        "fields": {
+            "template": 1,
+            "order": 1,
+            "name": "Manager Approval",
+            "name_ar": "اعتماد المدير",
+            "step_type": "approval",
+            "assignee_type": "manager",
+            "sla_days": 3,
+            "is_required": true,
+            "allow_delegation": true,
+            "instructions": "Please review and approve this content created by a team member. Verify the content is accurate and complies with organizational standards.",
+            "instructions_ar": "يرجى مراجعة واعتماد هذا المحتوى الذي أنشأه أحد أعضاء الفريق. تحقق من دقة المحتوى وامتثاله للمعايير التنظيمية."
+        }
+    },
+    {
+        "model": "workflow.workflowtemplate",
+        "pk": 4,
+        "fields": {
+            "name": "Policy Approval",
+            "name_ar": "اعتماد السياسة",
+            "code": "policy-approval",
+            "workflow_type": "approval",
+            "description": "Standard approval workflow for policies",
+            "description_ar": "سير عمل الاعتماد القياسي للسياسات",
+            "applicable_models": ["governance.policy"],
+            "default_sla_days": 5,
+            "escalation_enabled": true,
+            "escalation_days": 3,
+            "is_active": false
+        }
+    },
+    {
+        "model": "workflow.workflowstep",
+        "pk": 1,
+        "fields": {
+            "template": 1,
+            "order": 1,
+            "name": "Manager Review",
+            "name_ar": "مراجعة المدير",
+            "step_type": "review",
+            "assignee_type": "manager",
+            "sla_days": 3,
+            "is_required": true,
+            "allow_delegation": true,
+            "instructions": "Please review the policy and provide your feedback.",
+            "instructions_ar": "يرجى مراجعة السياسة وتقديم ملاحظاتك."
+        }
+    },
+    {
+        "model": "workflow.workflowstep",
+        "pk": 2,
+        "fields": {
+            "template": 1,
+            "order": 2,
+            "name": "Final Approval",
+            "name_ar": "الاعتماد النهائي",
+            "step_type": "approval",
+            "assignee_type": "role",
+            "sla_days": 2,
+            "is_required": true,
+            "allow_delegation": true,
+            "instructions": "Please approve or reject this policy.",
+            "instructions_ar": "يرجى اعتماد أو رفض هذه السياسة."
+        }
+    },
+    {
+        "model": "workflow.workflowtemplate",
+        "pk": 2,
+        "fields": {
+            "name": "Risk Acceptance",
+            "name_ar": "قبول المخاطر",
+            "code": "risk-acceptance",
+            "workflow_type": "approval",
+            "description": "Approval workflow for risk acceptance requests",
+            "description_ar": "سير عمل الاعتماد لطلبات قبول المخاطر",
+            "applicable_models": ["risk.riskacceptance"],
+            "default_sla_days": 7,
+            "escalation_enabled": true,
+            "escalation_days": 5,
+            "is_active": true
+        }
+    },
+    {
+        "model": "workflow.workflowstep",
+        "pk": 3,
+        "fields": {
+            "template": 2,
+            "order": 1,
+            "name": "Risk Owner Approval",
+            "name_ar": "اعتماد مالك المخاطر",
+            "step_type": "approval",
+            "assignee_type": "owner",
+            "sla_days": 3,
+            "is_required": true,
+            "allow_delegation": true,
+            "instructions": "Please review and approve this risk acceptance request.",
+            "instructions_ar": "يرجى مراجعة واعتماد طلب قبول المخاطر."
+        }
+    },
+    {
+        "model": "workflow.workflowstep",
+        "pk": 4,
+        "fields": {
+            "template": 2,
+            "order": 2,
+            "name": "Management Approval",
+            "name_ar": "اعتماد الإدارة",
+            "step_type": "approval",
+            "assignee_type": "manager",
+            "sla_days": 4,
+            "is_required": true,
+            "allow_delegation": true,
+            "instructions": "Management approval required for risk acceptance.",
+            "instructions_ar": "مطلوب اعتماد الإدارة لقبول المخاطر."
+        }
+    },
+    {
+        "model": "workflow.workflowtemplate",
+        "pk": 3,
+        "fields": {
+            "name": "Procedure Approval",
+            "name_ar": "اعتماد الإجراء",
+            "code": "procedure-approval",
+            "workflow_type": "approval",
+            "description": "Standard approval workflow for procedures",
+            "description_ar": "سير عمل الاعتماد القياسي للإجراءات",
+            "applicable_models": ["governance.procedure"],
+            "default_sla_days": 5,
+            "escalation_enabled": true,
+            "escalation_days": 3,
+            "is_active": true
+        }
+    },
+    {
+        "model": "workflow.workflowstep",
+        "pk": 5,
+        "fields": {
+            "template": 3,
+            "order": 1,
+            "name": "Department Review",
+            "name_ar": "مراجعة الإدارة",
+            "step_type": "review",
+            "assignee_type": "manager",
+            "sla_days": 3,
+            "is_required": true,
+            "allow_delegation": true,
+            "instructions": "Please review the procedure and provide your feedback.",
+            "instructions_ar": "يرجى مراجعة الإجراء وتقديم ملاحظاتك."
+        }
+    },
+    {
+        "model": "workflow.workflowstep",
+        "pk": 6,
+        "fields": {
+            "template": 3,
+            "order": 2,
+            "name": "Final Approval",
+            "name_ar": "الاعتماد النهائي",
+            "step_type": "approval",
+            "assignee_type": "role",
+            "sla_days": 2,
+            "is_required": true,
+            "allow_delegation": true,
+            "instructions": "Please approve or reject this procedure.",
+            "instructions_ar": "يرجى اعتماد أو رفض هذا الإجراء."
+        }
+    }
+]

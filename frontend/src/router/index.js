@@ -30,6 +30,11 @@ const Controls = () => import('@/views/compliance/Controls.vue')
 const Audits = () => import('@/views/compliance/Audits.vue')
 const Evidence = () => import('@/views/compliance/Evidence.vue')
 
+// Workflow
+const TaskInbox = () => import('@/views/workflow/TaskInbox.vue')
+const ApprovalCenter = () => import('@/views/workflow/ApprovalCenter.vue')
+const WorkflowDashboard = () => import('@/views/workflow/WorkflowDashboard.vue')
+
 // Settings
 const Settings = () => import('@/views/Settings.vue')
 const Profile = () => import('@/views/Profile.vue')
@@ -125,6 +130,22 @@ const routes = [
                 path: 'compliance/evidence',
                 name: 'Evidence',
                 component: Evidence
+            },
+            // Workflow
+            {
+                path: 'workflow',
+                name: 'WorkflowDashboard',
+                component: WorkflowDashboard
+            },
+            {
+                path: 'workflow/tasks',
+                name: 'TaskInbox',
+                component: TaskInbox
+            },
+            {
+                path: 'workflow/approvals',
+                name: 'ApprovalCenter',
+                component: ApprovalCenter
             },
             // Settings
             {

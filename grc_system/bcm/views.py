@@ -1,6 +1,8 @@
 """
 BCM app views.
 """
+import json
+import time
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -20,6 +22,16 @@ from .serializers import (
     CrisisIncidentSerializer, CrisisIncidentListSerializer,
     BCMTestSerializer, BCMTestListSerializer, BCMTestFindingSerializer
 )
+
+# region agent log
+DEBUG_LOG_PATH = r'c:\Users\aalshehre\GRC\grc_system\grc\.cursor\debug.log'
+def debug_log(location, message, data, hypothesis_id):
+    try:
+        log_entry = json.dumps({'location': location, 'message': message, 'data': data, 'timestamp': int(time.time() * 1000), 'sessionId': 'debug-session', 'hypothesisId': hypothesis_id})
+        with open(DEBUG_LOG_PATH, 'a', encoding='utf-8') as f:
+            f.write(log_entry + '\n')
+    except: pass
+# endregion
 
 
 class BusinessFunctionViewSet(viewsets.ModelViewSet):
@@ -82,6 +94,24 @@ class BCPlanViewSet(viewsets.ModelViewSet):
         if self.action == 'list':
             return BCPlanListSerializer
         return BCPlanSerializer
+    
+    # region agent log
+    def create(self, request, *args, **kwargs):
+        debug_log('BCPlanViewSet.create:entry', 'Create BC plan request received', {'request_data': request.data}, 'BCPLAN')
+        serializer = self.get_serializer(data=request.data)
+        if not serializer.is_valid():
+            debug_log('BCPlanViewSet.create:validation_error', 'Serializer validation failed', {'errors': serializer.errors}, 'BCPLAN')
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        debug_log('BCPlanViewSet.create:validation_passed', 'Serializer validation passed', {}, 'BCPLAN')
+        try:
+            self.perform_create(serializer)
+            debug_log('BCPlanViewSet.create:success', 'BC plan created successfully', {'id': serializer.data.get('id')}, 'BCPLAN')
+            headers = self.get_success_headers(serializer.data)
+            return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+        except Exception as e:
+            debug_log('BCPlanViewSet.create:exception', 'Exception during BC plan creation', {'error': str(e)}, 'BCPLAN')
+            raise
+    # endregion
 
 
 class DisasterRecoveryPlanViewSet(viewsets.ModelViewSet):
@@ -93,6 +123,24 @@ class DisasterRecoveryPlanViewSet(viewsets.ModelViewSet):
     filterset_fields = ['organization', 'status', 'owner']
     search_fields = ['title', 'title_ar', 'plan_id']
     ordering = ['-updated_at']
+    
+    # region agent log
+    def create(self, request, *args, **kwargs):
+        debug_log('DRPlanViewSet.create:entry', 'Create DR plan request received', {'request_data': request.data}, 'DRPLAN')
+        serializer = self.get_serializer(data=request.data)
+        if not serializer.is_valid():
+            debug_log('DRPlanViewSet.create:validation_error', 'Serializer validation failed', {'errors': serializer.errors}, 'DRPLAN')
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        debug_log('DRPlanViewSet.create:validation_passed', 'Serializer validation passed', {}, 'DRPLAN')
+        try:
+            self.perform_create(serializer)
+            debug_log('DRPlanViewSet.create:success', 'DR plan created successfully', {'id': serializer.data.get('id')}, 'DRPLAN')
+            headers = self.get_success_headers(serializer.data)
+            return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+        except Exception as e:
+            debug_log('DRPlanViewSet.create:exception', 'Exception during DR plan creation', {'error': str(e)}, 'DRPLAN')
+            raise
+    # endregion
 
 
 class CrisisManagementTeamViewSet(viewsets.ModelViewSet):
@@ -165,6 +213,63 @@ class BCMTestViewSet(viewsets.ModelViewSet):
         if self.action == 'list':
             return BCMTestListSerializer
         return BCMTestSerializer
+    
+    def create(self, request, *args, **kwargs):
+        # #region agent log
+        import json
+        from django.utils import timezone
+        log_entry = {
+            "location": "BCMTestViewSet.create:entry",
+            "message": "Create BCM test request received",
+            "data": {"request_data": request.data},
+            "timestamp": timezone.now().timestamp() * 1000,
+            "sessionId": "debug-session",
+            "hypothesisId": "BCMTEST"
+        }
+        with open('c:\\Users\\aalshehre\\GRC\\grc_system\\grc\\.cursor\\debug.log', 'a') as f:
+            f.write(json.dumps(log_entry) + '\n')
+        # #endregion
+        serializer = self.get_serializer(data=request.data)
+        if not serializer.is_valid():
+            # #region agent log
+            log_entry = {
+                "location": "BCMTestViewSet.create:validation_error",
+                "message": "Serializer validation failed",
+                "data": {"errors": serializer.errors, "data": serializer.initial_data},
+                "timestamp": timezone.now().timestamp() * 1000,
+                "sessionId": "debug-session",
+                "hypothesisId": "BCMTEST"
+            }
+            with open('c:\\Users\\aalshehre\\GRC\\grc_system\\grc\\.cursor\\debug.log', 'a') as f:
+                f.write(json.dumps(log_entry) + '\n')
+            # #endregion
+            return Response(serializer.errors, status=400)
+        # #region agent log
+        log_entry = {
+            "location": "BCMTestViewSet.create:validation_passed",
+            "message": "Serializer validation passed",
+            "data": {},
+            "timestamp": timezone.now().timestamp() * 1000,
+            "sessionId": "debug-session",
+            "hypothesisId": "BCMTEST"
+        }
+        with open('c:\\Users\\aalshehre\\GRC\\grc_system\\grc\\.cursor\\debug.log', 'a') as f:
+            f.write(json.dumps(log_entry) + '\n')
+        # #endregion
+        test = serializer.save()
+        # #region agent log
+        log_entry = {
+            "location": "BCMTestViewSet.create:success",
+            "message": "BCM test created successfully",
+            "data": {"id": test.id},
+            "timestamp": timezone.now().timestamp() * 1000,
+            "sessionId": "debug-session",
+            "hypothesisId": "BCMTEST"
+        }
+        with open('c:\\Users\\aalshehre\\GRC\\grc_system\\grc\\.cursor\\debug.log', 'a') as f:
+            f.write(json.dumps(log_entry) + '\n')
+        # #endregion
+        return Response(self.get_serializer(test).data, status=201)
     
     @action(detail=True, methods=['post'])
     def start(self, request, pk=None):

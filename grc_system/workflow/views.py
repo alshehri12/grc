@@ -65,23 +65,64 @@ class ApprovalViewSet(viewsets.ModelViewSet):
     
     @action(detail=True, methods=['post'])
     def approve(self, request, pk=None):
+        """Approve a pending approval and advance the workflow."""
+        from .services import WorkflowService
+        
         approval = self.get_object()
-        approval.status = 'approved'
-        approval.decided_by = request.user
-        approval.decided_at = timezone.now()
-        approval.comments = request.data.get('comments', '')
-        approval.save()
-        return Response(ApprovalSerializer(approval).data)
+        comments = request.data.get('comments', '')
+        
+        try:
+            approval, workflow_completed = WorkflowService.handle_approval_decision(
+                approval, 'approved', request.user, comments
+            )
+            return Response({
+                **ApprovalSerializer(approval).data,
+                'workflow_completed': workflow_completed
+            })
+        except ValueError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
     
     @action(detail=True, methods=['post'])
     def reject(self, request, pk=None):
+        """Reject an approval and update the workflow accordingly."""
+        from .services import WorkflowService
+        
         approval = self.get_object()
-        approval.status = 'rejected'
-        approval.decided_by = request.user
-        approval.decided_at = timezone.now()
-        approval.comments = request.data.get('comments', '')
-        approval.save()
-        return Response(ApprovalSerializer(approval).data)
+        comments = request.data.get('comments', '')
+        
+        try:
+            approval, workflow_completed = WorkflowService.handle_approval_decision(
+                approval, 'rejected', request.user, comments
+            )
+            return Response({
+                **ApprovalSerializer(approval).data,
+                'workflow_completed': workflow_completed
+            })
+        except ValueError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    
+    @action(detail=True, methods=['post'])
+    def delegate(self, request, pk=None):
+        """Delegate an approval to another user."""
+        from .services import WorkflowService
+        from django.contrib.auth import get_user_model
+        
+        User = get_user_model()
+        approval = self.get_object()
+        to_user_id = request.data.get('to_user_id')
+        reason = request.data.get('reason', '')
+        
+        if not to_user_id:
+            return Response({'error': 'to_user_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            to_user = User.objects.get(pk=to_user_id)
+            WorkflowService.delegate_approval(approval, request.user, to_user, reason)
+            return Response(ApprovalSerializer(approval).data)
+        except User.DoesNotExist:
+            return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+        except ValueError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class TaskViewSet(viewsets.ModelViewSet):

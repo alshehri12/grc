@@ -393,9 +393,18 @@ const saveRisk = async () => {
     
     saving.value = true
     try {
+        // Format dates properly for Django (YYYY-MM-DD)
+        const formatDate = (date) => {
+            if (!date) return null;
+            if (typeof date === 'string') return date.split('T')[0];
+            if (date instanceof Date) return date.toISOString().split('T')[0];
+            return null;
+        };
+        
         const data = {
             ...form.value,
-            organization: appStore.currentOrganization?.id || 1
+            organization: appStore.currentOrganization?.id || 1,
+            review_date: formatDate(form.value.review_date)
         }
         
         if (isEdit.value && selectedRisk.value?.id) {
@@ -410,7 +419,24 @@ const saveRisk = async () => {
         await loadRisks()
     } catch (error) {
         console.error('Failed to save risk:', error)
-        toast.add({ severity: 'error', summary: 'Error', detail: error.response?.data?.detail || 'Failed to save risk', life: 3000 })
+        // Extract user-friendly error message
+        let errorMsg = 'Failed to save risk'
+        if (error.response?.data) {
+            const data = error.response.data
+            if (data.non_field_errors?.some(e => e.includes('unique')) || data.risk_id?.some(e => e.includes('unique') || e.includes('exists'))) {
+                errorMsg = 'This Risk ID already exists. Please enter a different ID.'
+            } else if (data.detail) {
+                errorMsg = data.detail
+            } else if (data.non_field_errors) {
+                errorMsg = data.non_field_errors.join(', ')
+            } else {
+                const firstKey = Object.keys(data)[0]
+                if (firstKey && Array.isArray(data[firstKey])) {
+                    errorMsg = `${firstKey}: ${data[firstKey].join(', ')}`
+                }
+            }
+        }
+        toast.add({ severity: 'warn', summary: 'Duplicate ID', detail: errorMsg, life: 6000 })
     } finally {
         saving.value = false
     }

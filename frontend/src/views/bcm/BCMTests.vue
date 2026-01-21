@@ -114,9 +114,19 @@
                     <Textarea v-model="form.scope" rows="2" placeholder="Test scope..." />
                 </div>
                 
+                <div class="form-field">
+                    <label>Test Scenario <span class="required">*</span></label>
+                    <Textarea v-model="form.scenario" rows="3" placeholder="Describe the test scenario..." />
+                </div>
+                
+                <div class="form-field">
+                    <label>سيناريو الاختبار (عربي)</label>
+                    <Textarea v-model="form.scenario_ar" rows="3" placeholder="وصف سيناريو الاختبار..." dir="rtl" />
+                </div>
+                
                 <div class="form-row">
                     <div class="form-field">
-                        <label>Scheduled Date</label>
+                        <label>Scheduled Date <span class="required">*</span></label>
                         <Calendar v-model="form.scheduled_date" dateFormat="yy-mm-dd" showIcon />
                     </div>
                     <div class="form-field">
@@ -216,6 +226,8 @@ const form = ref({
     objectives: '',
     objectives_ar: '',
     scope: '',
+    scenario: '',
+    scenario_ar: '',
     test_type: 'tabletop',
     status: 'planned',
     scheduled_date: null
@@ -274,6 +286,8 @@ const resetForm = () => {
         objectives: '',
         objectives_ar: '',
         scope: '',
+        scenario: '',
+        scenario_ar: '',
         test_type: 'tabletop',
         status: 'planned',
         scheduled_date: null
@@ -312,16 +326,25 @@ const loadTests = async () => {
 }
 
 const saveTest = async () => {
-    if (!form.value.test_id || !form.value.title) {
-        toast.add({ severity: 'warn', summary: 'Validation', detail: 'Please fill Test ID and Title', life: 3000 })
+    if (!form.value.test_id || !form.value.title || !form.value.scenario || !form.value.scheduled_date) {
+        toast.add({ severity: 'warn', summary: 'Validation', detail: 'Please fill Test ID, Title, Scenario, and Scheduled Date', life: 3000 })
         return
     }
     
     saving.value = true
     try {
+        // Format dates properly for Django (YYYY-MM-DD)
+        const formatDate = (date) => {
+            if (!date) return null;
+            if (typeof date === 'string') return date.split('T')[0];
+            if (date instanceof Date) return date.toISOString().split('T')[0];
+            return null;
+        };
+        
         const data = {
             ...form.value,
-            organization: appStore.currentOrganization?.id || 1
+            organization: appStore.currentOrganization?.id || 1,
+            scheduled_date: formatDate(form.value.scheduled_date)
         }
         
         if (isEdit.value && selectedTest.value?.id) {
@@ -336,7 +359,24 @@ const saveTest = async () => {
         await loadTests()
     } catch (error) {
         console.error('Failed to save test:', error)
-        toast.add({ severity: 'error', summary: 'Error', detail: error.response?.data?.detail || 'Failed to save test', life: 3000 })
+        // Extract user-friendly error message
+        let errorMsg = 'Failed to save test'
+        if (error.response?.data) {
+            const data = error.response.data
+            if (data.non_field_errors?.some(e => e.includes('unique')) || data.test_id?.some(e => e.includes('unique') || e.includes('exists'))) {
+                errorMsg = 'This Test ID already exists. Please enter a different ID.'
+            } else if (data.detail) {
+                errorMsg = data.detail
+            } else if (data.non_field_errors) {
+                errorMsg = data.non_field_errors.join(', ')
+            } else {
+                const firstKey = Object.keys(data)[0]
+                if (firstKey && Array.isArray(data[firstKey])) {
+                    errorMsg = `${firstKey}: ${data[firstKey].join(', ')}`
+                }
+            }
+        }
+        toast.add({ severity: 'warn', summary: 'Duplicate ID', detail: errorMsg, life: 6000 })
     } finally {
         saving.value = false
     }
