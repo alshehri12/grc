@@ -3,8 +3,15 @@
         <!-- Sidebar -->
         <aside class="layout-sidebar">
             <div class="sidebar-header">
-                <img src="/logo.svg" alt="Logo" class="logo" v-if="!appStore.sidebarCollapsed" />
-                <span class="app-name" v-if="!appStore.sidebarCollapsed">{{ $t('app.name') }}</span>
+                <!-- Logo Section -->
+                <a href="https://ncec.gov.sa/" target="_blank" class="logo-link">
+                    <img alt="NCEC Logo" src="/ncec-logo.jpg" class="logo" />
+                </a>
+                <!-- Organization Info -->
+                <div class="org-info" v-if="!appStore.sidebarCollapsed">
+                    <div class="org-name">المركز الوطني للرقابة على الإلتزام البيئي</div>
+                    <div class="org-country">المملكة العربية السعودية</div>
+                </div>
             </div>
             
             <nav class="sidebar-menu">
@@ -271,23 +278,67 @@ const toggleLanguage = () => {
     width: 70px;
 }
 
+.sidebar-collapsed .sidebar-header {
+    justify-content: center;
+    padding: 0.5rem;
+}
+
+.sidebar-collapsed .logo {
+    width: 45px;
+    height: 45px;
+}
+
 .sidebar-header {
-    padding: 1.5rem;
+    padding: 0.75rem 1rem;
     display: flex;
     align-items: center;
     gap: 0.75rem;
     border-bottom: 1px solid var(--p-surface-200);
+    background: #ffffff;
+    min-height: 70px;
+}
+
+.logo-link {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
 }
 
 .logo {
-    width: 40px;
-    height: 40px;
+    width: 55px;
+    height: 55px;
+    object-fit: contain;
+    transition: transform 0.2s ease;
+    border-radius: 4px;
 }
 
-.app-name {
-    font-weight: 600;
-    font-size: 1.1rem;
-    color: var(--p-primary-color);
+.logo:hover {
+    transform: scale(1.05);
+}
+
+.org-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    min-width: 0;
+    flex: 1;
+}
+
+.org-name {
+    font-weight: 700;
+    font-size: 0.8rem;
+    color: #1a1a2e;
+    line-height: 1.3;
+    text-align: right;
+    direction: rtl;
+}
+
+.org-country {
+    font-weight: 500;
+    font-size: 0.7rem;
+    color: #6b7280;
+    text-align: right;
+    direction: rtl;
 }
 
 .sidebar-menu {
@@ -404,10 +455,27 @@ const toggleLanguage = () => {
 }
 
 /* Dark mode adjustments */
-.dark-mode .layout-sidebar,
+.dark-mode .layout-sidebar {
+    background: var(--p-surface-900);
+    border-color: var(--p-surface-700);
+}
+
 .dark-mode .layout-topbar {
     background: var(--p-surface-900);
     border-color: var(--p-surface-700);
+}
+
+.dark-mode .sidebar-header {
+    background: var(--p-surface-800);
+    border-bottom-color: var(--p-surface-700);
+}
+
+.dark-mode .org-name {
+    color: #ffffff;
+}
+
+.dark-mode .org-country {
+    color: #9ca3af;
 }
 
 .dark-mode .layout-content {

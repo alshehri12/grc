@@ -3,9 +3,9 @@
         <div class="auth-container">
             <div class="auth-card">
                 <div class="auth-header">
-                    <img src="/logo.svg" alt="Logo" class="auth-logo" />
-                    <h1 class="auth-title">{{ $t('app.name') }}</h1>
-                    <p class="auth-subtitle">{{ $t('app.tagline') }}</p>
+                    <a href="https://ncec.gov.sa/" target="_blank" class="logo-link">
+                        <img src="/ncec-logo.jpg" alt="NCEC Logo" class="auth-logo" />
+                    </a>
                 </div>
                 
                 <router-view />
@@ -82,23 +82,14 @@ const toggleLanguage = () => {
     margin-bottom: 2rem;
 }
 
+.logo-link {
+    display: inline-block;
+}
+
 .auth-logo {
-    width: 72px;
-    height: 72px;
-    margin-bottom: 1rem;
-}
-
-.auth-title {
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: var(--p-primary-color);
-    margin: 0 0 0.5rem;
-}
-
-.auth-subtitle {
-    color: var(--p-text-muted-color);
-    margin: 0;
-    font-size: 0.9rem;
+    max-width: 320px;
+    width: 100%;
+    height: auto;
 }
 
 .auth-footer {
@@ -126,7 +117,7 @@ const toggleLanguage = () => {
 .bg-gradient {
     position: absolute;
     inset: 0;
-    background: linear-gradient(135deg, #1e40af 0%, #0891b2 50%, #059669 100%);
+    background: linear-gradient(135deg, #006837 0%, #0b4d26 50%, #004d2a 100%);
 }
 
 .bg-pattern {

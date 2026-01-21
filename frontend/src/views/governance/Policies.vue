@@ -336,10 +336,6 @@ const savePolicy = async () => {
     
     saving.value = true
     try {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/4d636c21-df4c-4da4-9e62-b6bf552d18e4',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Policies.vue:savePolicy:entry',message:'savePolicy called',data:{formValue:form.value,isEdit:isEdit.value,currentOrgId:appStore.currentOrganization?.id,selectedPolicyId:selectedPolicy.value?.id},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,B'})}).catch(()=>{});
-        // #endregion
-        
         // Format dates properly for Django (YYYY-MM-DD)
         const formatDate = (date) => {
             if (!date) return null;
@@ -357,10 +353,6 @@ const savePolicy = async () => {
             review_date: formatDate(form.value.review_date)
         }
         
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/4d636c21-df4c-4da4-9e62-b6bf552d18e4',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Policies.vue:savePolicy:beforeRequest',message:'Data prepared for API',data:{preparedData:data,effectiveDateType:typeof form.value.effective_date,reviewDateType:typeof form.value.review_date},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,B,D'})}).catch(()=>{});
-        // #endregion
-        
         if (isEdit.value && selectedPolicy.value?.id) {
             await governanceApi.policies.update(selectedPolicy.value.id, data)
             toast.add({ severity: 'success', summary: 'Success', detail: 'Policy updated successfully', life: 3000 })
@@ -369,16 +361,9 @@ const savePolicy = async () => {
             toast.add({ severity: 'success', summary: 'Success', detail: 'Policy created successfully', life: 3000 })
         }
         
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/4d636c21-df4c-4da4-9e62-b6bf552d18e4',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Policies.vue:savePolicy:success',message:'Policy saved successfully',data:{isEdit:isEdit.value},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'SUCCESS'})}).catch(()=>{});
-        // #endregion
-        
         dialogVisible.value = false
         await loadPolicies()
     } catch (error) {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/4d636c21-df4c-4da4-9e62-b6bf552d18e4',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Policies.vue:savePolicy:error',message:'Save policy failed',data:{errorMessage:error.message,errorStatus:error.response?.status,errorData:error.response?.data,errorConfig:error.config?.data},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C,D,E'})}).catch(()=>{});
-        // #endregion
         console.error('Failed to save policy:', error)
         // Extract user-friendly error message
         let errorMsg = 'Failed to save policy'
