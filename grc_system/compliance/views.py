@@ -329,3 +329,73 @@ class GapAssessmentViewSet(viewsets.ModelViewSet):
         assessment.compliance_score = assessment.calculate_compliance_score()
         assessment.save()
         return Response(GapAssessmentSerializer(assessment).data)
+    
+    @action(detail=True, methods=['post'])
+    def refresh_from_implementations(self, request, pk=None):
+        """
+        Auto-calculate gap assessment from current control implementations.
+        POST /api/compliance/gap-assessments/{id}/refresh_from_implementations/
+        """
+        assessment = self.get_object()
+        result = assessment.refresh_from_implementations()
+        
+        return Response({
+            'message': 'Gap assessment refreshed from control implementations',
+            'updated_values': result,
+            'compliance_status': assessment.compliance_status
+        })
+    
+    @action(detail=True, methods=['get'])
+    def gaps(self, request, pk=None):
+        """
+        Get list of identified gaps for this assessment.
+        GET /api/compliance/gap-assessments/{id}/gaps/
+        """
+        assessment = self.get_object()
+        gaps = assessment.get_gaps()
+        
+        # Group by severity
+        by_severity = {'high': [], 'medium': [], 'low': []}
+        for gap in gaps:
+            severity = gap.get('severity', 'low')
+            by_severity[severity].append(gap)
+        
+        return Response({
+            'total_gaps': len(gaps),
+            'by_severity': {
+                'high': len(by_severity['high']),
+                'medium': len(by_severity['medium']),
+                'low': len(by_severity['low']),
+            },
+            'gaps': gaps,
+        })
+    
+    @action(detail=False, methods=['get'])
+    def dashboard(self, request):
+        """
+        Get compliance dashboard data for all frameworks.
+        GET /api/compliance/gap-assessments/dashboard/
+        """
+        from compliance.utils import calculate_compliance_score, calculate_maturity_score, check_evidence_status, get_audit_statistics
+        from core.models import Organization
+        
+        org_id = request.query_params.get('organization')
+        
+        if org_id:
+            try:
+                org = Organization.objects.get(pk=org_id)
+                compliance_data = calculate_compliance_score(org)
+                maturity_data = calculate_maturity_score(org)
+                evidence_status = check_evidence_status(org)
+                audit_stats = get_audit_statistics(org)
+                
+                return Response({
+                    'compliance': compliance_data,
+                    'maturity': maturity_data,
+                    'evidence': evidence_status,
+                    'audits': audit_stats,
+                })
+            except Organization.DoesNotExist:
+                return Response({'error': 'Organization not found'}, status=status.HTTP_404_NOT_FOUND)
+        
+        return Response({'error': 'organization parameter required'}, status=status.HTTP_400_BAD_REQUEST)

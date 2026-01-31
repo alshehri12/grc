@@ -69,6 +69,73 @@ class BusinessFunctionViewSet(viewsets.ModelViewSet):
         
         tree = [build_tree(func) for func in functions]
         return Response(tree)
+    
+    @action(detail=True, methods=['get'])
+    def dependency_analysis(self, request, pk=None):
+        """
+        Analyze cascading dependency impact for a business function.
+        GET /api/bcm/functions/{id}/dependency_analysis/
+        """
+        from bcm.utils import calculate_dependency_impact
+        
+        func = self.get_object()
+        impact = calculate_dependency_impact(func)
+        
+        # Get BIA data if available
+        bia = func.bias.filter(status__in=['completed', 'approved']).first()
+        
+        return Response({
+            'function': {
+                'id': func.id,
+                'function_id': func.function_id,
+                'name': func.name,
+                'criticality': func.criticality,
+            },
+            'dependencies': {
+                'depends_on': [
+                    {'id': d.id, 'name': d.name, 'criticality': d.criticality}
+                    for d in func.dependent_functions.all()
+                ],
+                'depended_by': impact['direct_dependents'],
+            },
+            'cascade_impact': {
+                'total_affected_functions': impact['total_affected'],
+                'cascade_depth': impact['cascade_depth'],
+                'max_affected_criticality': impact['max_criticality'],
+            },
+            'bia_summary': {
+                'rto_hours': bia.rto_hours if bia else None,
+                'rpo_hours': bia.rpo_hours if bia else None,
+                'mtpd_hours': bia.mtpd_hours if bia else None,
+            } if bia else None,
+            'risk_assessment': self._assess_function_risk(func, impact)
+        })
+    
+    def _assess_function_risk(self, func, impact):
+        """Assess function disruption risk based on criticality and dependencies."""
+        criticality_scores = {'critical': 4, 'essential': 3, 'necessary': 2, 'desirable': 1}
+        base_score = criticality_scores.get(func.criticality, 1)
+        
+        # Increase score based on cascade impact
+        cascade_multiplier = 1 + (impact['total_affected'] * 0.1)
+        
+        final_score = min(base_score * cascade_multiplier, 5)
+        
+        if final_score >= 4:
+            risk_level = 'critical'
+        elif final_score >= 3:
+            risk_level = 'high'
+        elif final_score >= 2:
+            risk_level = 'medium'
+        else:
+            risk_level = 'low'
+        
+        return {
+            'disruption_risk_score': round(final_score, 1),
+            'risk_level': risk_level,
+            'recommendation': f'Function has {impact["total_affected"]} dependent functions. '
+                            f'Disruption would cause {"significant" if final_score >= 3 else "moderate"} cascade impact.'
+        }
 
 
 class BusinessImpactAnalysisViewSet(viewsets.ModelViewSet):
@@ -79,6 +146,63 @@ class BusinessImpactAnalysisViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, OrderingFilter]
     filterset_fields = ['organization', 'business_function', 'status']
     ordering = ['-assessment_date']
+    
+    @action(detail=True, methods=['get'])
+    def recommendations(self, request, pk=None):
+        """
+        Get BIA recommendations including RTO, MTPD, and criticality.
+        GET /api/bcm/bia/{id}/recommendations/
+        """
+        bia = self.get_object()
+        
+        return Response({
+            'business_function': bia.business_function.name if bia.business_function else None,
+            'current_values': {
+                'rto_hours': bia.rto_hours,
+                'rpo_hours': bia.rpo_hours,
+                'mtpd_hours': bia.mtpd_hours,
+            },
+            'recommended_values': {
+                'rto_hours': bia.recommended_rto,
+                'mtpd_hours': bia.recommended_mtpd,
+                'criticality': bia.recommended_criticality,
+            },
+            'impact_progression': {
+                '1_hour': bia.impact_1_hour,
+                '4_hours': bia.impact_4_hours,
+                '8_hours': bia.impact_8_hours,
+                '24_hours': bia.impact_24_hours,
+                '72_hours': bia.impact_72_hours,
+            },
+            'validation_warnings': self._get_validation_warnings(bia)
+        })
+    
+    def _get_validation_warnings(self, bia):
+        """Generate validation warnings for BIA."""
+        warnings = []
+        
+        if bia.rto_hours and bia.mtpd_hours:
+            if bia.rto_hours > bia.mtpd_hours:
+                warnings.append({
+                    'field': 'rto_hours',
+                    'message': 'RTO exceeds MTPD - recovery must happen before maximum tolerable disruption'
+                })
+        
+        if bia.rto_hours and bia.recommended_rto:
+            if bia.rto_hours > bia.recommended_rto:
+                warnings.append({
+                    'field': 'rto_hours',
+                    'message': f'RTO ({bia.rto_hours}h) is longer than recommended ({bia.recommended_rto}h) based on impact progression'
+                })
+        
+        if bia.rpo_hours and bia.rto_hours:
+            if bia.rpo_hours > bia.rto_hours:
+                warnings.append({
+                    'field': 'rpo_hours',
+                    'message': 'RPO exceeds RTO - data loss point should be before service recovery'
+                })
+        
+        return warnings
 
 
 class BCPlanViewSet(viewsets.ModelViewSet):
@@ -112,6 +236,65 @@ class BCPlanViewSet(viewsets.ModelViewSet):
             debug_log('BCPlanViewSet.create:exception', 'Exception during BC plan creation', {'error': str(e)}, 'BCPLAN')
             raise
     # endregion
+    
+    @action(detail=True, methods=['get'])
+    def coverage_analysis(self, request, pk=None):
+        """
+        Analyze BC Plan coverage of critical functions.
+        GET /api/bcm/bc-plans/{id}/coverage_analysis/
+        """
+        from bcm.utils import validate_bc_plan_coverage, check_plan_test_status
+        
+        plan = self.get_object()
+        coverage = validate_bc_plan_coverage(plan)
+        test_status = check_plan_test_status(plan)
+        
+        return Response({
+            'plan_id': plan.plan_id,
+            'title': plan.title,
+            'status': plan.status,
+            'coverage': coverage,
+            'testing': test_status,
+            'recommendations': self._get_plan_recommendations(plan, coverage, test_status)
+        })
+    
+    def _get_plan_recommendations(self, plan, coverage, test_status):
+        """Generate recommendations for BC Plan."""
+        recommendations = []
+        
+        if not coverage['is_complete']:
+            recommendations.append({
+                'priority': 'high',
+                'type': 'coverage_gap',
+                'message': f"Plan is missing {len(coverage['uncovered_critical'])} critical/essential functions",
+                'action': 'Add missing functions to plan coverage'
+            })
+        
+        if test_status['needs_testing']:
+            recommendations.append({
+                'priority': 'medium',
+                'type': 'testing_required',
+                'message': test_status['recommendation'],
+                'action': 'Schedule BC plan test/exercise'
+            })
+        
+        if plan.status == 'draft':
+            recommendations.append({
+                'priority': 'medium',
+                'type': 'approval_pending',
+                'message': 'Plan is still in draft status',
+                'action': 'Submit plan for review and approval'
+            })
+        
+        if not plan.review_date:
+            recommendations.append({
+                'priority': 'low',
+                'type': 'review_schedule',
+                'message': 'No review date scheduled',
+                'action': 'Set next review date (recommended: annually)'
+            })
+        
+        return recommendations
 
 
 class DisasterRecoveryPlanViewSet(viewsets.ModelViewSet):

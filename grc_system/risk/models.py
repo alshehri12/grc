@@ -283,19 +283,52 @@ class Risk(models.Model):
     def __str__(self):
         return f"{self.risk_id}: {self.title}"
     
+    def clean(self):
+        """Validate risk scores are within acceptable range."""
+        from django.core.exceptions import ValidationError
+        errors = {}
+        
+        # Validate likelihood/impact ranges (1-5)
+        for field in ['inherent_likelihood', 'inherent_impact', 'residual_likelihood', 
+                      'residual_impact', 'target_likelihood', 'target_impact']:
+            value = getattr(self, field, None)
+            if value is not None and (value < 1 or value > 5):
+                errors[field] = f'{field.replace("_", " ").title()} must be between 1 and 5'
+        
+        # Validate residual <= inherent (controls should reduce risk)
+        if self.residual_likelihood and self.inherent_likelihood:
+            if self.residual_likelihood > self.inherent_likelihood:
+                errors['residual_likelihood'] = 'Residual likelihood should not exceed inherent likelihood'
+        
+        if self.residual_impact and self.inherent_impact:
+            if self.residual_impact > self.inherent_impact:
+                errors['residual_impact'] = 'Residual impact should not exceed inherent impact'
+        
+        if errors:
+            raise ValidationError(errors)
+    
     @property
     def inherent_risk_score(self):
+        """Calculate inherent risk score (before controls)."""
         return self.inherent_likelihood * self.inherent_impact
     
     @property
     def residual_risk_score(self):
+        """Calculate residual risk score (after controls)."""
         if self.residual_likelihood and self.residual_impact:
             return self.residual_likelihood * self.residual_impact
         return None
     
     @property
+    def target_risk_score(self):
+        """Calculate target risk score (desired state)."""
+        if self.target_likelihood and self.target_impact:
+            return self.target_likelihood * self.target_impact
+        return None
+    
+    @property
     def risk_level(self):
-        """Get risk level based on inherent score"""
+        """Get risk level based on inherent score."""
         score = self.inherent_risk_score
         if score >= 20:
             return 'critical'
@@ -305,6 +338,58 @@ class Risk(models.Model):
             return 'medium'
         else:
             return 'low'
+    
+    @property
+    def residual_risk_level(self):
+        """Get residual risk level."""
+        score = self.residual_risk_score
+        if score is None:
+            return None
+        if score >= 20:
+            return 'critical'
+        elif score >= 12:
+            return 'high'
+        elif score >= 6:
+            return 'medium'
+        else:
+            return 'low'
+    
+    @property
+    def risk_reduction_percentage(self):
+        """Calculate how much risk has been reduced by controls."""
+        if self.residual_risk_score and self.inherent_risk_score:
+            reduction = ((self.inherent_risk_score - self.residual_risk_score) / self.inherent_risk_score) * 100
+            return round(reduction, 1)
+        return None
+    
+    def calculate_residual_from_controls(self):
+        """
+        Auto-calculate residual risk based on linked control effectiveness.
+        Updates residual_likelihood and residual_impact.
+        """
+        from risk.utils import calculate_control_effectiveness_from_linked_controls, calculate_residual_risk
+        
+        if not self.controls.exists():
+            # No controls - residual equals inherent
+            return
+        
+        effectiveness = calculate_control_effectiveness_from_linked_controls(self)
+        res_likelihood, res_impact, _ = calculate_residual_risk(
+            self.inherent_likelihood,
+            self.inherent_impact,
+            effectiveness
+        )
+        
+        self.residual_likelihood = res_likelihood
+        self.residual_impact = res_impact
+    
+    def get_treatment_recommendation(self):
+        """Get recommended treatment option based on risk level."""
+        from risk.utils import get_treatment_recommendation
+        return get_treatment_recommendation(
+            self.inherent_risk_score,
+            self.residual_risk_score
+        )
 
 
 class RiskAssessment(models.Model):

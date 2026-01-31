@@ -140,6 +140,82 @@ class RiskViewSet(viewsets.ModelViewSet):
             }
         }
         return Response(stats)
+    
+    @action(detail=True, methods=['post'])
+    def calculate_residual(self, request, pk=None):
+        """
+        Calculate residual risk based on linked control effectiveness.
+        POST /api/risk/risks/{id}/calculate_residual/
+        """
+        risk = self.get_object()
+        risk.calculate_residual_from_controls()
+        risk.save()
+        return Response({
+            'inherent_score': risk.inherent_risk_score,
+            'residual_likelihood': risk.residual_likelihood,
+            'residual_impact': risk.residual_impact,
+            'residual_score': risk.residual_risk_score,
+            'risk_reduction': risk.risk_reduction_percentage,
+            'treatment_recommendation': risk.get_treatment_recommendation()
+        })
+    
+    @action(detail=True, methods=['get'])
+    def analysis(self, request, pk=None):
+        """
+        Get comprehensive risk analysis.
+        GET /api/risk/risks/{id}/analysis/
+        """
+        from risk.utils import get_risk_level, get_risk_color, check_risk_appetite
+        
+        risk = self.get_object()
+        
+        # Get appetite threshold from settings (default 12 = medium-high boundary)
+        appetite_threshold = 12
+        appetite_result = check_risk_appetite(risk, appetite_threshold)
+        
+        return Response({
+            'risk_id': risk.risk_id,
+            'title': risk.title,
+            'inherent': {
+                'likelihood': risk.inherent_likelihood,
+                'impact': risk.inherent_impact,
+                'score': risk.inherent_risk_score,
+                'level': risk.risk_level,
+                'color': get_risk_color(risk.inherent_risk_score)
+            },
+            'residual': {
+                'likelihood': risk.residual_likelihood,
+                'impact': risk.residual_impact,
+                'score': risk.residual_risk_score,
+                'level': risk.residual_risk_level,
+                'color': get_risk_color(risk.residual_risk_score) if risk.residual_risk_score else None
+            },
+            'target': {
+                'likelihood': risk.target_likelihood,
+                'impact': risk.target_impact,
+                'score': risk.target_risk_score
+            },
+            'risk_reduction': risk.risk_reduction_percentage,
+            'linked_controls_count': risk.controls.count(),
+            'treatment_recommendation': risk.get_treatment_recommendation(),
+            'appetite_check': appetite_result,
+            'active_treatments': risk.treatments.filter(status__in=['planned', 'in_progress']).count(),
+        })
+    
+    @action(detail=False, methods=['get'])
+    def by_category(self, request):
+        """
+        Get risks aggregated by category.
+        GET /api/risk/risks/by_category/
+        """
+        from risk.utils import aggregate_risks_by_category
+        
+        org_id = request.query_params.get('organization')
+        risks = self.queryset
+        if org_id:
+            risks = risks.filter(organization_id=org_id)
+        
+        return Response(aggregate_risks_by_category(risks))
 
 
 class RiskAssessmentViewSet(viewsets.ModelViewSet):

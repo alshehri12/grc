@@ -222,7 +222,71 @@ class BusinessImpactAnalysis(models.Model):
         ordering = ['-assessment_date']
     
     def __str__(self):
-        return f"BIA: {self.business_function.name} ({self.assessment_date})"
+        func_name = self.business_function.name if self.business_function else 'Unknown'
+        return f"BIA: {func_name} ({self.assessment_date})"
+    
+    def clean(self):
+        """Validate BIA data including RTO/MTPD relationship."""
+        from django.core.exceptions import ValidationError
+        from bcm.utils import validate_rto_mtpd, validate_rpo_rto
+        
+        errors = {}
+        
+        # Validate impact values are 1-5
+        for field in ['impact_1_hour', 'impact_4_hours', 'impact_8_hours', 
+                      'impact_24_hours', 'impact_72_hours']:
+            value = getattr(self, field, None)
+            if value is not None and (value < 1 or value > 5):
+                errors[field] = f'{field.replace("_", " ").title()} must be between 1 and 5'
+        
+        # Validate impact should increase over time (or stay same)
+        impacts = [
+            ('impact_1_hour', self.impact_1_hour),
+            ('impact_4_hours', self.impact_4_hours),
+            ('impact_8_hours', self.impact_8_hours),
+            ('impact_24_hours', self.impact_24_hours),
+            ('impact_72_hours', self.impact_72_hours),
+        ]
+        prev_impact = 0
+        for field_name, impact in impacts:
+            if impact is not None:
+                if impact < prev_impact:
+                    errors[field_name] = 'Impact should not decrease over time'
+                prev_impact = impact
+        
+        # Validate RTO <= MTPD
+        try:
+            validate_rto_mtpd(self.rto_hours, self.mtpd_hours)
+        except ValidationError as e:
+            errors['rto_hours'] = str(e.message)
+        
+        # Validate RPO <= RTO (generally)
+        try:
+            validate_rpo_rto(self.rpo_hours, self.rto_hours)
+        except ValidationError as e:
+            # This is a warning, not a hard error
+            pass
+        
+        if errors:
+            raise ValidationError(errors)
+    
+    @property
+    def recommended_rto(self):
+        """Calculate recommended RTO based on impact progression."""
+        from bcm.utils import calculate_recommended_rto
+        return calculate_recommended_rto(self)
+    
+    @property
+    def recommended_mtpd(self):
+        """Calculate recommended MTPD based on impact progression."""
+        from bcm.utils import calculate_recommended_mtpd
+        return calculate_recommended_mtpd(self)
+    
+    @property
+    def recommended_criticality(self):
+        """Get recommended criticality based on RTO."""
+        from bcm.utils import get_criticality_from_rto
+        return get_criticality_from_rto(self.rto_hours)
 
 
 class BCPlan(models.Model):
