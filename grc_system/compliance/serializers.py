@@ -40,11 +40,12 @@ class ControlSerializer(serializers.ModelSerializer):
 class ControlListSerializer(serializers.ModelSerializer):
     domain_name = serializers.CharField(source='domain.name', read_only=True)
     framework_code = serializers.CharField(source='domain.framework.code', read_only=True)
+    framework_name = serializers.CharField(source='domain.framework.name', read_only=True)
     
     class Meta:
         model = Control
-        fields = ['id', 'control_id', 'title', 'title_ar', 'control_type', 
-                  'domain_name', 'framework_code']
+        fields = ['id', 'control_id', 'title', 'title_ar', 'control_type',
+                  'domain_name', 'framework_code', 'framework_name']
 
 
 class ControlImplementationSerializer(serializers.ModelSerializer):

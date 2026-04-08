@@ -3,7 +3,7 @@
         <div class="page-header">
             <div>
                 <h1>{{ $t('compliance.audits') }}</h1>
-                <p>التدقيق والمراجعة - Audits</p>
+                <p>{{ appStore.locale === 'ar' ? 'التدقيق والمراجعة' : 'Audits' }}</p>
             </div>
             <Button :label="$t('common.create')" icon="pi pi-plus" @click="openCreateDialog" />
         </div>
@@ -84,10 +84,10 @@
                 
                 <div class="form-row">
                     <div class="form-field">
-                        <label>Title (English) <span class="required">*</span></label>
+                        <label>{{ appStore.locale === 'ar' ? 'العنوان' : 'Title' }} <span class="required">*</span></label>
                         <InputText v-model="form.title" placeholder="Audit title" />
                     </div>
-                    <div class="form-field">
+                    <div class="form-field" v-if="appStore.locale === 'ar'">
                         <label>العنوان (عربي)</label>
                         <InputText v-model="form.title_ar" placeholder="عنوان التدقيق" dir="rtl" />
                     </div>
@@ -98,7 +98,7 @@
                     <Textarea v-model="form.objectives" rows="3" placeholder="Audit objectives..." />
                 </div>
                 
-                <div class="form-field">
+                <div class="form-field" v-if="appStore.locale === 'ar'">
                     <label>الأهداف (عربي)</label>
                     <Textarea v-model="form.objectives_ar" rows="3" placeholder="أهداف التدقيق..." dir="rtl" />
                 </div>
@@ -226,20 +226,29 @@ const auditTypeOptions = [
     { label: 'Internal - داخلي', value: 'internal' },
     { label: 'External - خارجي', value: 'external' },
     { label: 'Certification - شهادة', value: 'certification' },
-    { label: 'Regulatory - تنظيمي', value: 'regulatory' }
+    { label: 'Regulatory - تنظيمي', value: 'regulatory' },
+    { label: 'Surveillance - متابعة', value: 'surveillance' }
 ]
 
 const statusOptions = [
+    { label: 'Draft - مسودة', value: 'draft' },
+    { label: 'Pending Approval - بانتظار الاعتماد', value: 'pending_approval' },
     { label: 'Planned - مخطط', value: 'planned' },
     { label: 'In Progress - قيد التنفيذ', value: 'in_progress' },
+    { label: 'Fieldwork - عمل ميداني', value: 'fieldwork' },
+    { label: 'Reporting - إعداد التقرير', value: 'reporting' },
     { label: 'Completed - مكتمل', value: 'completed' },
     { label: 'Cancelled - ملغي', value: 'cancelled' }
 ]
 
 const getStatusSeverity = (status) => {
     const map = {
+        draft: 'secondary',
+        pending_approval: 'warn',
         planned: 'info',
         in_progress: 'warn',
+        fieldwork: 'warn',
+        reporting: 'info',
         completed: 'success',
         cancelled: 'secondary'
     }
@@ -297,6 +306,11 @@ const saveAudit = async () => {
         toast.add({ severity: 'warn', summary: 'Validation', detail: 'Please fill Audit ID, Title, and Start/End Dates', life: 3000 })
         return
     }
+    const orgId = await appStore.ensureOrganization()
+    if (!orgId) {
+        toast.add({ severity: 'warn', summary: 'Organization Required', detail: 'Please select an organization first', life: 3000 })
+        return
+    }
     
     saving.value = true
     try {
@@ -310,7 +324,7 @@ const saveAudit = async () => {
         
         const data = {
             ...form.value,
-            organization: appStore.currentOrganization?.id || 1,
+            organization: orgId,
             planned_start_date: formatDate(form.value.planned_start_date),
             planned_end_date: formatDate(form.value.planned_end_date)
         }

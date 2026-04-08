@@ -96,11 +96,21 @@ export const governanceApi = {
     },
     procedures: {
         list: (params) => api.get('/governance/procedures/', { params }),
-        get: (id) => api.get(`/governance/procedures/${id}/`)
+        get: (id) => api.get(`/governance/procedures/${id}/`),
+        create: (data) => api.post('/governance/procedures/', data),
+        update: (id, data) => api.put(`/governance/procedures/${id}/`, data),
+        delete: (id) => api.delete(`/governance/procedures/${id}/`)
     },
     documents: {
         list: (params) => api.get('/governance/documents/', { params }),
-        get: (id) => api.get(`/governance/documents/${id}/`)
+        get: (id) => api.get(`/governance/documents/${id}/`),
+        create: (formData) => api.post('/governance/documents/', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+        }),
+        update: (id, formData) => api.put(`/governance/documents/${id}/`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+        }),
+        delete: (id) => api.delete(`/governance/documents/${id}/`)
     }
 }
 
@@ -176,6 +186,9 @@ export const complianceApi = {
         update: (id, data) => api.put(`/compliance/frameworks/${id}/`, data),
         delete: (id) => api.delete(`/compliance/frameworks/${id}/`)
     },
+    domains: {
+        list: (params) => api.get('/compliance/domains/', { params })
+    },
     controls: {
         list: (params) => api.get('/compliance/controls/', { params }),
         get: (id) => api.get(`/compliance/controls/${id}/`),
@@ -210,8 +223,12 @@ export const complianceApi = {
     evidence: {
         list: (params) => api.get('/compliance/evidence/', { params }),
         get: (id) => api.get(`/compliance/evidence/${id}/`),
-        create: (data) => api.post('/compliance/evidence/', data),
-        update: (id, data) => api.put(`/compliance/evidence/${id}/`, data),
+        create: (formData) => api.post('/compliance/evidence/', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+        }),
+        update: (id, formData) => api.put(`/compliance/evidence/${id}/`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+        }),
         delete: (id) => api.delete(`/compliance/evidence/${id}/`),
         expiringSoon: (orgId) => api.get('/compliance/evidence/expiring_soon/', { params: { organization: orgId } })
     },

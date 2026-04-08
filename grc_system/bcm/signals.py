@@ -74,8 +74,8 @@ def trigger_business_function_workflow(sender, instance, created, **kwargs):
     is_manager_user = user_is_manager(creator)
     
     if is_author and not is_manager_user:
-        if instance.status in ['draft', 'active']:
-            BusinessFunction.objects.filter(pk=instance.pk).update(status='pending_approval')
+        if instance.status in ['active']:
+            BusinessFunction.objects.filter(pk=instance.pk).update(status='under_review')
             instance.refresh_from_db()
         start_content_workflow(instance, creator, 'BusinessFunction', 'function_id')
     elif is_manager_user:
@@ -137,8 +137,8 @@ def trigger_bcmtest_workflow(sender, instance, created, **kwargs):
     is_manager_user = user_is_manager(creator)
     
     if is_author and not is_manager_user:
-        if instance.status in ['draft', 'planned']:
-            BCMTest.objects.filter(pk=instance.pk).update(status='pending_approval')
+        if instance.status in ['planned']:
+            BCMTest.objects.filter(pk=instance.pk).update(status='planned')
             instance.refresh_from_db()
         start_content_workflow(instance, creator, 'BCMTest', 'test_id')
     elif is_manager_user:
@@ -153,7 +153,7 @@ def handle_workflow_completed(sender, instance, **kwargs):
     if 'bcm.businessfunction' in instance.content_type:
         try:
             obj = BusinessFunction.objects.get(pk=instance.object_id)
-            obj.status = 'active' if instance.status == 'completed' else 'draft'
+            obj.status = 'active' if instance.status == 'completed' else 'inactive'
             obj.save(update_fields=['status'])
             logger.info(f"Updated business function {obj.function_id} status to {obj.status}")
         except BusinessFunction.DoesNotExist:
@@ -180,7 +180,7 @@ def handle_workflow_completed(sender, instance, **kwargs):
     elif 'bcm.bcmtest' in instance.content_type:
         try:
             obj = BCMTest.objects.get(pk=instance.object_id)
-            obj.status = 'planned' if instance.status == 'completed' else 'draft'
+            obj.status = 'planned' if instance.status == 'completed' else 'cancelled'
             obj.save(update_fields=['status'])
             logger.info(f"Updated BCM test {obj.test_id} status to {obj.status}")
         except BCMTest.DoesNotExist:

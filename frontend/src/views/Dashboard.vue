@@ -307,9 +307,11 @@ const getPrioritySeverity = (priority) => {
 onMounted(async () => {
     try {
         // Fetch executive summary
-        const orgId = appStore.currentOrganization?.id || 1
-        const summaryRes = await dashboardApi.executiveSummary(orgId)
-        summary.value = summaryRes.data
+        const orgId = appStore.currentOrganization?.id
+        if (orgId) {
+            const summaryRes = await dashboardApi.executiveSummary(orgId)
+            summary.value = summaryRes.data
+        }
         
         // Fetch my tasks
         const tasksRes = await workflowApi.tasks.myTasks()

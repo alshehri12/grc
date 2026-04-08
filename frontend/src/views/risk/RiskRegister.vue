@@ -287,6 +287,7 @@ const riskTypeOptions = [
 
 const statusOptions = [
     { label: 'Identified - محدد', value: 'identified' },
+    { label: 'Pending Approval - بانتظار الاعتماد', value: 'pending_approval' },
     { label: 'Assessed - مقيم', value: 'assessed' },
     { label: 'Treating - قيد المعالجة', value: 'treating' },
     { label: 'Monitoring - مراقب', value: 'monitoring' },
@@ -326,6 +327,7 @@ const getRiskLevelLabel = (score) => {
 const getStatusSeverity = (status) => {
     const map = {
         identified: 'info',
+        pending_approval: 'warn',
         assessed: 'info',
         treating: 'warn',
         monitoring: 'success',
@@ -390,6 +392,11 @@ const saveRisk = async () => {
         toast.add({ severity: 'warn', summary: 'Validation', detail: 'Please fill Risk ID and Title', life: 3000 })
         return
     }
+    const orgId = await appStore.ensureOrganization()
+    if (!orgId) {
+        toast.add({ severity: 'warn', summary: 'Organization Required', detail: 'Please select an organization first', life: 3000 })
+        return
+    }
     
     saving.value = true
     try {
@@ -403,7 +410,7 @@ const saveRisk = async () => {
         
         const data = {
             ...form.value,
-            organization: appStore.currentOrganization?.id || 1,
+            organization: orgId,
             review_date: formatDate(form.value.review_date)
         }
         

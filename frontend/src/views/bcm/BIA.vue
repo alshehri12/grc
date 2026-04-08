@@ -7,13 +7,13 @@
             </div>
             <Button :label="$t('common.create')" icon="pi pi-plus" @click="openCreateDialog" />
         </div>
-        
+
         <Card>
             <template #content>
-                <DataTable 
-                    :value="biaList" 
+                <DataTable
+                    :value="biaList"
                     :loading="loading"
-                    paginator 
+                    paginator
                     :rows="10"
                     responsiveLayout="scroll"
                 >
@@ -24,11 +24,12 @@
                             <Button :label="$t('common.create')" icon="pi pi-plus" @click="openCreateDialog" />
                         </div>
                     </template>
-                    <Column field="bia_id" header="ID" sortable style="width: 100px"></Column>
+                    <Column field="id" header="ID" sortable style="width: 80px"></Column>
                     <Column field="function_name" header="Business Function"></Column>
-                    <Column field="rto_hours" header="RTO (Hours)"></Column>
-                    <Column field="rpo_hours" header="RPO (Hours)"></Column>
-                    <Column field="mtpd_hours" header="MTPD (Hours)"></Column>
+                    <Column field="assessment_date" header="Assessment Date"></Column>
+                    <Column field="rto_hours" header="RTO"></Column>
+                    <Column field="rpo_hours" header="RPO"></Column>
+                    <Column field="mtpd_hours" header="MTPD"></Column>
                     <Column field="status" header="Status">
                         <template #body="{ data }">
                             <Tag :severity="getStatusSeverity(data.status)">{{ data.status }}</Tag>
@@ -44,121 +45,137 @@
                 </DataTable>
             </template>
         </Card>
-        
-        <!-- Create/Edit Dialog -->
-        <Dialog 
-            v-model:visible="dialogVisible" 
+
+        <Dialog
+            v-model:visible="dialogVisible"
             :header="isEdit ? 'Edit BIA - تعديل تحليل تأثير الأعمال' : 'New BIA - تحليل تأثير أعمال جديد'"
-            :style="{ width: '700px' }"
+            :style="{ width: '820px' }"
             modal
         >
             <div class="dialog-content">
-                <div class="form-field">
-                    <label>Business Function <span class="required">*</span></label>
-                    <Dropdown 
-                        v-model="form.business_function" 
-                        :options="functions" 
-                        optionLabel="name" 
-                        optionValue="id"
-                        placeholder="Select function"
-                        filter
-                    />
-                </div>
-                
-                <Divider />
-                
-                <h4>Recovery Objectives - أهداف الاسترداد</h4>
-                
                 <div class="form-row">
                     <div class="form-field">
-                        <label>RTO (Hours) <span class="required">*</span></label>
-                        <InputNumber v-model="form.rto_hours" placeholder="4" />
+                        <label>Business Function <span class="required">*</span></label>
+                        <Dropdown
+                            v-model="form.business_function"
+                            :options="functions"
+                            optionLabel="name"
+                            optionValue="id"
+                            placeholder="Select function"
+                            filter
+                        />
                     </div>
                     <div class="form-field">
-                        <label>RPO (Hours) <span class="required">*</span></label>
-                        <InputNumber v-model="form.rpo_hours" placeholder="1" />
+                        <label>Assessment Date</label>
+                        <Calendar v-model="form.assessment_date" dateFormat="yy-mm-dd" showIcon />
                     </div>
                 </div>
-                
+
+                <div class="form-row">
+                    <div class="form-field">
+                        <label>Status</label>
+                        <Dropdown v-model="form.status" :options="statusOptions" optionLabel="label" optionValue="value" />
+                    </div>
+                    <div class="form-field">
+                        <label>Daily Financial Impact (SAR)</label>
+                        <InputNumber v-model="form.financial_impact_daily" mode="decimal" :minFractionDigits="2" />
+                    </div>
+                </div>
+
+                <Divider />
+                <h4>Recovery Objectives - أهداف الاسترداد</h4>
+
+                <div class="form-row">
+                    <div class="form-field">
+                        <label>RTO (Hours)</label>
+                        <InputNumber v-model="form.rto_hours" :min="0" />
+                    </div>
+                    <div class="form-field">
+                        <label>RPO (Hours)</label>
+                        <InputNumber v-model="form.rpo_hours" :min="0" />
+                    </div>
+                </div>
+
                 <div class="form-row">
                     <div class="form-field">
                         <label>MTPD (Hours)</label>
-                        <InputNumber v-model="form.mtpd_hours" placeholder="24" />
+                        <InputNumber v-model="form.mtpd_hours" :min="0" />
                     </div>
                     <div class="form-field">
-                        <label>WRT (Hours)</label>
-                        <InputNumber v-model="form.wrt_hours" placeholder="2" />
+                        <label>Minimum Staff</label>
+                        <InputNumber v-model="form.minimum_staff" :min="1" />
                     </div>
                 </div>
-                
+
                 <Divider />
-                
-                <h4>Impact Assessment - تقييم التأثير</h4>
-                
+                <h4>Impact Over Time (1-5) - التأثير عبر الزمن</h4>
+
                 <div class="form-row">
                     <div class="form-field">
-                        <label>Financial Impact (1-5)</label>
-                        <Dropdown 
-                            v-model="form.financial_impact" 
-                            :options="impactOptions" 
-                            optionLabel="label" 
-                            optionValue="value"
-                        />
+                        <label>1 Hour</label>
+                        <Dropdown v-model="form.impact_1_hour" :options="impactOptions" optionLabel="label" optionValue="value" />
                     </div>
                     <div class="form-field">
-                        <label>Operational Impact (1-5)</label>
-                        <Dropdown 
-                            v-model="form.operational_impact" 
-                            :options="impactOptions" 
-                            optionLabel="label" 
-                            optionValue="value"
-                        />
+                        <label>4 Hours</label>
+                        <Dropdown v-model="form.impact_4_hours" :options="impactOptions" optionLabel="label" optionValue="value" />
                     </div>
                 </div>
-                
                 <div class="form-row">
                     <div class="form-field">
-                        <label>Reputational Impact (1-5)</label>
-                        <Dropdown 
-                            v-model="form.reputational_impact" 
-                            :options="impactOptions" 
-                            optionLabel="label" 
-                            optionValue="value"
-                        />
+                        <label>8 Hours</label>
+                        <Dropdown v-model="form.impact_8_hours" :options="impactOptions" optionLabel="label" optionValue="value" />
                     </div>
                     <div class="form-field">
-                        <label>Regulatory Impact (1-5)</label>
-                        <Dropdown 
-                            v-model="form.regulatory_impact" 
-                            :options="impactOptions" 
-                            optionLabel="label" 
-                            optionValue="value"
-                        />
+                        <label>24 Hours</label>
+                        <Dropdown v-model="form.impact_24_hours" :options="impactOptions" optionLabel="label" optionValue="value" />
                     </div>
                 </div>
-                
                 <div class="form-field">
-                    <label>Status</label>
-                    <Dropdown 
-                        v-model="form.status" 
-                        :options="statusOptions" 
-                        optionLabel="label" 
-                        optionValue="value"
-                    />
+                    <label>72 Hours</label>
+                    <Dropdown v-model="form.impact_72_hours" :options="impactOptions" optionLabel="label" optionValue="value" />
+                </div>
+
+                <Divider />
+                <h4>Impact Narratives - أوصاف التأثير</h4>
+
+                <div class="form-field">
+                    <label>Operational Impact</label>
+                    <Textarea v-model="form.operational_impact" rows="2" />
+                </div>
+                <div class="form-field">
+                    <label>الأثر التشغيلي</label>
+                    <Textarea v-model="form.operational_impact_ar" rows="2" dir="rtl" />
+                </div>
+
+                <div class="form-field">
+                    <label>Reputational Impact</label>
+                    <Textarea v-model="form.reputational_impact" rows="2" />
+                </div>
+                <div class="form-field">
+                    <label>الأثر السمعة</label>
+                    <Textarea v-model="form.reputational_impact_ar" rows="2" dir="rtl" />
+                </div>
+
+                <div class="form-field">
+                    <label>Regulatory/Legal Impact</label>
+                    <Textarea v-model="form.regulatory_impact" rows="2" />
+                </div>
+                <div class="form-field">
+                    <label>الأثر التنظيمي/القانوني</label>
+                    <Textarea v-model="form.regulatory_impact_ar" rows="2" dir="rtl" />
                 </div>
             </div>
-            
+
             <template #footer>
                 <Button :label="$t('common.cancel')" text @click="dialogVisible = false" />
                 <Button :label="$t('common.save')" icon="pi pi-check" @click="saveBIA" :loading="saving" />
             </template>
         </Dialog>
-        
-        <!-- View Dialog -->
-        <Dialog 
-            v-model:visible="viewDialogVisible" 
+
+        <Dialog
+            v-model:visible="viewDialogVisible"
             header="BIA Details"
-            :style="{ width: '600px' }"
+            :style="{ width: '640px' }"
             modal
         >
             <div class="view-content" v-if="selectedBIA">
@@ -167,16 +184,12 @@
                     <span class="value">{{ selectedBIA.function_name }}</span>
                 </div>
                 <div class="detail-row">
-                    <span class="label">RTO:</span>
-                    <span class="value">{{ selectedBIA.rto_hours }} hours</span>
+                    <span class="label">Assessment Date:</span>
+                    <span class="value">{{ selectedBIA.assessment_date || '-' }}</span>
                 </div>
                 <div class="detail-row">
-                    <span class="label">RPO:</span>
-                    <span class="value">{{ selectedBIA.rpo_hours }} hours</span>
-                </div>
-                <div class="detail-row">
-                    <span class="label">MTPD:</span>
-                    <span class="value">{{ selectedBIA.mtpd_hours }} hours</span>
+                    <span class="label">RTO / RPO / MTPD:</span>
+                    <span class="value">{{ selectedBIA.rto_hours || '-' }} / {{ selectedBIA.rpo_hours || '-' }} / {{ selectedBIA.mtpd_hours || '-' }}</span>
                 </div>
                 <div class="detail-row">
                     <span class="label">Status:</span>
@@ -197,6 +210,8 @@ import InputNumber from 'primevue/inputnumber'
 import Dropdown from 'primevue/dropdown'
 import Dialog from 'primevue/dialog'
 import Divider from 'primevue/divider'
+import Textarea from 'primevue/textarea'
+import Calendar from 'primevue/calendar'
 import Tag from 'primevue/tag'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
@@ -218,15 +233,24 @@ const selectedBIA = ref(null)
 
 const form = ref({
     business_function: null,
-    rto_hours: 4,
-    rpo_hours: 1,
-    mtpd_hours: 24,
-    wrt_hours: 2,
-    financial_impact: 3,
-    operational_impact: 3,
-    reputational_impact: 3,
-    regulatory_impact: 3,
-    status: 'draft'
+    assessment_date: null,
+    status: 'draft',
+    rto_hours: null,
+    rpo_hours: null,
+    mtpd_hours: null,
+    impact_1_hour: 1,
+    impact_4_hours: 2,
+    impact_8_hours: 3,
+    impact_24_hours: 4,
+    impact_72_hours: 5,
+    financial_impact_daily: null,
+    operational_impact: '',
+    operational_impact_ar: '',
+    reputational_impact: '',
+    reputational_impact_ar: '',
+    regulatory_impact: '',
+    regulatory_impact_ar: '',
+    minimum_staff: 1
 })
 
 const impactOptions = [
@@ -239,31 +263,49 @@ const impactOptions = [
 
 const statusOptions = [
     { label: 'Draft - مسودة', value: 'draft' },
-    { label: 'Under Review - قيد المراجعة', value: 'under_review' },
+    { label: 'In Progress - قيد التنفيذ', value: 'in_progress' },
+    { label: 'Completed - مكتمل', value: 'completed' },
     { label: 'Approved - معتمد', value: 'approved' }
 ]
 
 const getStatusSeverity = (status) => {
     const map = {
         draft: 'secondary',
-        under_review: 'warn',
+        in_progress: 'warn',
+        completed: 'info',
         approved: 'success'
     }
     return map[status] || 'info'
 }
 
+const formatDate = (date) => {
+    if (!date) return null
+    if (typeof date === 'string') return date.split('T')[0]
+    if (date instanceof Date) return date.toISOString().split('T')[0]
+    return null
+}
+
 const resetForm = () => {
     form.value = {
         business_function: null,
-        rto_hours: 4,
-        rpo_hours: 1,
-        mtpd_hours: 24,
-        wrt_hours: 2,
-        financial_impact: 3,
-        operational_impact: 3,
-        reputational_impact: 3,
-        regulatory_impact: 3,
-        status: 'draft'
+        assessment_date: null,
+        status: 'draft',
+        rto_hours: null,
+        rpo_hours: null,
+        mtpd_hours: null,
+        impact_1_hour: 1,
+        impact_4_hours: 2,
+        impact_8_hours: 3,
+        impact_24_hours: 4,
+        impact_72_hours: 5,
+        financial_impact_daily: null,
+        operational_impact: '',
+        operational_impact_ar: '',
+        reputational_impact: '',
+        reputational_impact_ar: '',
+        regulatory_impact: '',
+        regulatory_impact_ar: '',
+        minimum_staff: 1
     }
 }
 
@@ -273,10 +315,17 @@ const openCreateDialog = () => {
     dialogVisible.value = true
 }
 
-const openEditDialog = (bia) => {
+const openEditDialog = async (bia) => {
     isEdit.value = true
     selectedBIA.value = bia
-    form.value = { ...bia }
+    const response = await bcmApi.bia.get(bia.id)
+    const detail = response.data
+    resetForm()
+    form.value = {
+        ...form.value,
+        ...detail,
+        assessment_date: detail.assessment_date || null
+    }
     dialogVisible.value = true
 }
 
@@ -303,18 +352,24 @@ const loadData = async () => {
 }
 
 const saveBIA = async () => {
-    if (!form.value.business_function || !form.value.rto_hours || !form.value.rpo_hours) {
-        toast.add({ severity: 'warn', summary: 'Validation', detail: 'Please fill all required fields', life: 3000 })
+    if (!form.value.business_function) {
+        toast.add({ severity: 'warn', summary: 'Validation', detail: 'Please select a business function', life: 3000 })
         return
     }
-    
+    const orgId = await appStore.ensureOrganization()
+    if (!orgId) {
+        toast.add({ severity: 'warn', summary: 'Organization Required', detail: 'Please select an organization first', life: 3000 })
+        return
+    }
+
     saving.value = true
     try {
         const data = {
             ...form.value,
-            organization: appStore.currentOrganization?.id || 1
+            organization: orgId,
+            assessment_date: formatDate(form.value.assessment_date)
         }
-        
+
         if (isEdit.value && selectedBIA.value?.id) {
             await bcmApi.bia.update(selectedBIA.value.id, data)
             toast.add({ severity: 'success', summary: 'Success', detail: 'BIA updated successfully', life: 3000 })
@@ -322,29 +377,12 @@ const saveBIA = async () => {
             await bcmApi.bia.create(data)
             toast.add({ severity: 'success', summary: 'Success', detail: 'BIA created successfully', life: 3000 })
         }
-        
+
         dialogVisible.value = false
         await loadData()
     } catch (error) {
         console.error('Failed to save BIA:', error)
-        // Extract user-friendly error message
-        let errorMsg = 'Failed to save BIA'
-        if (error.response?.data) {
-            const data = error.response.data
-            if (data.non_field_errors?.some(e => e.includes('unique')) || data.bia_id?.some(e => e.includes('unique') || e.includes('exists'))) {
-                errorMsg = 'This BIA ID already exists. Please enter a different ID.'
-            } else if (data.detail) {
-                errorMsg = data.detail
-            } else if (data.non_field_errors) {
-                errorMsg = data.non_field_errors.join(', ')
-            } else {
-                const firstKey = Object.keys(data)[0]
-                if (firstKey && Array.isArray(data[firstKey])) {
-                    errorMsg = `${firstKey}: ${data[firstKey].join(', ')}`
-                }
-            }
-        }
-        toast.add({ severity: 'warn', summary: 'Duplicate ID', detail: errorMsg, life: 6000 })
+        toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to save BIA', life: 3000 })
     } finally {
         saving.value = false
     }
@@ -352,7 +390,7 @@ const saveBIA = async () => {
 
 const confirmDelete = (bia) => {
     confirm.require({
-        message: 'Are you sure you want to delete this BIA?',
+        message: `Are you sure you want to delete this BIA for "${bia.function_name || 'function'}"?`,
         header: 'Confirm Delete',
         icon: 'pi pi-exclamation-triangle',
         acceptClass: 'p-button-danger',
@@ -408,11 +446,6 @@ onMounted(() => {
     gap: 1rem;
 }
 
-.dialog-content h4 {
-    margin: 0;
-    color: var(--p-primary-color);
-}
-
 .form-row {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -434,9 +467,10 @@ onMounted(() => {
     color: var(--p-red-500);
 }
 
-.form-field :deep(.p-inputtext),
+.form-field :deep(.p-inputnumber),
 .form-field :deep(.p-dropdown),
-.form-field :deep(.p-inputnumber) {
+.form-field :deep(.p-calendar),
+.form-field :deep(.p-inputtextarea) {
     width: 100%;
 }
 
@@ -454,6 +488,6 @@ onMounted(() => {
 
 .detail-row .label {
     font-weight: 600;
-    min-width: 150px;
+    min-width: 160px;
 }
 </style>

@@ -238,7 +238,7 @@ const testTypeOptions = [
     { label: 'Walkthrough - تمرين مرور', value: 'walkthrough' },
     { label: 'Simulation - محاكاة', value: 'simulation' },
     { label: 'Parallel - متوازي', value: 'parallel' },
-    { label: 'Full Interruption - انقطاع كامل', value: 'full_interruption' }
+    { label: 'Full Interruption - انقطاع كامل', value: 'full' }
 ]
 
 const statusOptions = [
@@ -254,7 +254,7 @@ const getTestTypeLabel = (type) => {
         walkthrough: 'Walkthrough',
         simulation: 'Simulation',
         parallel: 'Parallel',
-        full_interruption: 'Full Interruption'
+        full: 'Full Interruption'
     }
     return map[type] || type
 }
@@ -330,6 +330,11 @@ const saveTest = async () => {
         toast.add({ severity: 'warn', summary: 'Validation', detail: 'Please fill Test ID, Title, Scenario, and Scheduled Date', life: 3000 })
         return
     }
+    const orgId = await appStore.ensureOrganization()
+    if (!orgId) {
+        toast.add({ severity: 'warn', summary: 'Organization Required', detail: 'Please select an organization first', life: 3000 })
+        return
+    }
     
     saving.value = true
     try {
@@ -343,7 +348,7 @@ const saveTest = async () => {
         
         const data = {
             ...form.value,
-            organization: appStore.currentOrganization?.id || 1,
+            organization: orgId,
             scheduled_date: formatDate(form.value.scheduled_date)
         }
         

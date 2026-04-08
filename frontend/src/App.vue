@@ -23,6 +23,11 @@ onMounted(async () => {
     
     // Initialize auth
     await authStore.initialize()
+
+    // Ensure we always have a valid organization context after login.
+    if (authStore.isAuthenticated) {
+        await appStore.ensureOrganization()
+    }
 })
 </script>
 

@@ -3,7 +3,7 @@
         <div class="page-header">
             <div>
                 <h1>{{ $t('compliance.controls') }}</h1>
-                <p>ضوابط الامتثال - Compliance Controls</p>
+                <p>{{ appStore.locale === 'ar' ? 'ضوابط الامتثال' : 'Compliance Controls' }}</p>
             </div>
             <Button :label="$t('common.create')" icon="pi pi-plus" @click="openCreateDialog" />
         </div>
@@ -35,16 +35,10 @@
                         </template>
                     </Column>
                     <Column field="framework_name" header="Framework"></Column>
+                    <Column field="domain_name" header="Domain"></Column>
                     <Column field="control_type" header="Type">
                         <template #body="{ data }">
                             <Tag>{{ data.control_type }}</Tag>
-                        </template>
-                    </Column>
-                    <Column field="criticality" header="Criticality">
-                        <template #body="{ data }">
-                            <Tag :severity="getCriticalitySeverity(data.criticality)">
-                                {{ data.criticality }}
-                            </Tag>
                         </template>
                     </Column>
                     <Column header="Actions" style="width: 150px">
@@ -72,6 +66,32 @@
                         <InputText v-model="form.control_id" placeholder="CTRL-001" />
                     </div>
                     <div class="form-field">
+                        <label>Framework</label>
+                        <Dropdown
+                            v-model="selectedFramework"
+                            :options="frameworks"
+                            optionLabel="name"
+                            optionValue="id"
+                            placeholder="Select framework"
+                            showClear
+                            @change="loadDomains"
+                        />
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-field">
+                        <label>Domain</label>
+                        <Dropdown
+                            v-model="form.domain"
+                            :options="domains"
+                            optionLabel="name"
+                            optionValue="id"
+                            placeholder="Select domain"
+                            showClear
+                        />
+                    </div>
+                    <div class="form-field">
                         <label>Control Type</label>
                         <Dropdown 
                             v-model="form.control_type" 
@@ -85,46 +105,33 @@
                 
                 <div class="form-row">
                     <div class="form-field">
-                        <label>Title (English) <span class="required">*</span></label>
+                        <label>{{ appStore.locale === 'ar' ? 'العنوان' : 'Title' }} <span class="required">*</span></label>
                         <InputText v-model="form.title" placeholder="Control title" />
                     </div>
-                    <div class="form-field">
+                    <div class="form-field" v-if="appStore.locale === 'ar'">
                         <label>العنوان (عربي)</label>
                         <InputText v-model="form.title_ar" placeholder="عنوان الضابط" dir="rtl" />
                     </div>
                 </div>
                 
                 <div class="form-field">
-                    <label>Description <span class="required">*</span></label>
+                    <label>Description</label>
                     <Textarea v-model="form.description" rows="3" placeholder="Control description..." />
                 </div>
                 
-                <div class="form-field">
-                    <label>الوصف (عربي)</label>
+                <div class="form-field" v-if="appStore.locale === 'ar'">
+                    <label>الوصف</label>
                     <Textarea v-model="form.description_ar" rows="3" placeholder="وصف الضابط..." dir="rtl" />
                 </div>
                 
-                <div class="form-row">
-                    <div class="form-field">
-                        <label>Criticality</label>
-                        <Dropdown 
-                            v-model="form.criticality" 
-                            :options="criticalityOptions" 
-                            optionLabel="label" 
-                            optionValue="value"
-                            placeholder="Select criticality"
-                        />
-                    </div>
-                    <div class="form-field">
-                        <label>Automation Level</label>
-                        <Dropdown 
-                            v-model="form.automation_level" 
-                            :options="automationOptions" 
-                            optionLabel="label" 
-                            optionValue="value"
-                            placeholder="Select level"
-                        />
-                    </div>
+                <div class="form-field">
+                    <label>Evidence Requirements</label>
+                    <Textarea v-model="form.evidence_requirements" rows="2" placeholder="Evidence requirements..." />
+                </div>
+                
+                <div class="form-field">
+                    <label>متطلبات الأدلة (عربي)</label>
+                    <Textarea v-model="form.evidence_requirements_ar" rows="2" placeholder="متطلبات الأدلة..." dir="rtl" />
                 </div>
             </div>
             
@@ -159,10 +166,12 @@
                     <Tag>{{ selectedControl.control_type }}</Tag>
                 </div>
                 <div class="detail-row">
-                    <span class="label">Criticality:</span>
-                    <Tag :severity="getCriticalitySeverity(selectedControl.criticality)">
-                        {{ selectedControl.criticality }}
-                    </Tag>
+                    <span class="label">Framework:</span>
+                    <span class="value">{{ selectedControl.framework_name || '-' }}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="label">Domain:</span>
+                    <span class="value">{{ selectedControl.domain_name || '-' }}</span>
                 </div>
                 <div class="detail-row">
                     <span class="label">Description:</span>
@@ -194,6 +203,9 @@ const confirm = useConfirm()
 const toast = useToast()
 
 const controls = ref([])
+const frameworks = ref([])
+const domains = ref([])
+const selectedFramework = ref(null)
 const loading = ref(false)
 const saving = ref(false)
 const dialogVisible = ref(false)
@@ -207,9 +219,10 @@ const form = ref({
     title_ar: '',
     description: '',
     description_ar: '',
+    domain: null,
     control_type: 'preventive',
-    criticality: 'medium',
-    automation_level: 'manual'
+    evidence_requirements: '',
+    evidence_requirements_ar: ''
 })
 
 const controlTypeOptions = [
@@ -219,29 +232,6 @@ const controlTypeOptions = [
     { label: 'Compensating - تعويضي', value: 'compensating' }
 ]
 
-const criticalityOptions = [
-    { label: 'Critical - حرج', value: 'critical' },
-    { label: 'High - عالي', value: 'high' },
-    { label: 'Medium - متوسط', value: 'medium' },
-    { label: 'Low - منخفض', value: 'low' }
-]
-
-const automationOptions = [
-    { label: 'Manual - يدوي', value: 'manual' },
-    { label: 'Semi-Automated - شبه آلي', value: 'semi_automated' },
-    { label: 'Fully Automated - آلي بالكامل', value: 'fully_automated' }
-]
-
-const getCriticalitySeverity = (criticality) => {
-    const map = {
-        critical: 'danger',
-        high: 'warn',
-        medium: 'info',
-        low: 'success'
-    }
-    return map[criticality] || 'info'
-}
-
 const resetForm = () => {
     form.value = {
         control_id: '',
@@ -249,10 +239,13 @@ const resetForm = () => {
         title_ar: '',
         description: '',
         description_ar: '',
+        domain: null,
         control_type: 'preventive',
-        criticality: 'medium',
-        automation_level: 'manual'
+        evidence_requirements: '',
+        evidence_requirements_ar: ''
     }
+    selectedFramework.value = null
+    domains.value = []
 }
 
 const openCreateDialog = () => {
@@ -261,10 +254,28 @@ const openCreateDialog = () => {
     dialogVisible.value = true
 }
 
-const openEditDialog = (control) => {
+const openEditDialog = async (control) => {
     isEdit.value = true
     selectedControl.value = control
-    form.value = { ...control }
+    await loadDomains()
+    const response = await complianceApi.controls.get(control.id)
+    const detail = response.data
+    form.value = {
+        control_id: detail.control_id || '',
+        title: detail.title || '',
+        title_ar: detail.title_ar || '',
+        description: detail.description || '',
+        description_ar: detail.description_ar || '',
+        domain: detail.domain || null,
+        control_type: detail.control_type || 'preventive',
+        evidence_requirements: detail.evidence_requirements || '',
+        evidence_requirements_ar: detail.evidence_requirements_ar || ''
+    }
+    const selectedDomain = domains.value.find((item) => item.id === detail.domain)
+    selectedFramework.value = selectedDomain?.framework || null
+    if (selectedFramework.value) {
+        await loadDomains()
+    }
     dialogVisible.value = true
 }
 
@@ -286,6 +297,25 @@ const loadControls = async () => {
     }
 }
 
+const loadFrameworks = async () => {
+    try {
+        const response = await complianceApi.frameworks.list()
+        frameworks.value = response.data.results || response.data
+    } catch (error) {
+        console.error('Failed to load frameworks:', error)
+    }
+}
+
+const loadDomains = async () => {
+    try {
+        const params = selectedFramework.value ? { framework: selectedFramework.value } : {}
+        const response = await complianceApi.domains.list(params)
+        domains.value = response.data.results || response.data
+    } catch (error) {
+        console.error('Failed to load domains:', error)
+    }
+}
+
 const saveControl = async () => {
     if (!form.value.control_id || !form.value.title) {
         toast.add({ severity: 'warn', summary: 'Validation', detail: 'Please fill Control ID and Title', life: 3000 })
@@ -295,8 +325,15 @@ const saveControl = async () => {
     saving.value = true
     try {
         const data = {
-            ...form.value,
-            organization: appStore.currentOrganization?.id || 1
+            control_id: form.value.control_id,
+            title: form.value.title,
+            title_ar: form.value.title_ar,
+            description: form.value.description,
+            description_ar: form.value.description_ar,
+            domain: form.value.domain,
+            control_type: form.value.control_type,
+            evidence_requirements: form.value.evidence_requirements,
+            evidence_requirements_ar: form.value.evidence_requirements_ar
         }
         
         if (isEdit.value && selectedControl.value?.id) {
@@ -352,8 +389,8 @@ const confirmDelete = (control) => {
     })
 }
 
-onMounted(() => {
-    loadControls()
+onMounted(async () => {
+    await Promise.all([loadControls(), loadFrameworks()])
 })
 </script>
 

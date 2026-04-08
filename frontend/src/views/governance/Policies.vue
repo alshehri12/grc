@@ -333,6 +333,11 @@ const savePolicy = async () => {
         toast.add({ severity: 'warn', summary: 'Validation', detail: 'Please fill Policy ID and Title', life: 3000 })
         return
     }
+    const orgId = await appStore.ensureOrganization()
+    if (!orgId) {
+        toast.add({ severity: 'warn', summary: 'Organization Required', detail: 'Please select an organization first', life: 3000 })
+        return
+    }
     
     saving.value = true
     try {
@@ -348,7 +353,7 @@ const savePolicy = async () => {
         
         const data = {
             ...form.value,
-            organization: appStore.currentOrganization?.id || 1,
+            organization: orgId,
             effective_date: formatDate(form.value.effective_date),
             review_date: formatDate(form.value.review_date)
         }

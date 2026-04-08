@@ -280,12 +280,17 @@ const saveFunction = async () => {
         toast.add({ severity: 'warn', summary: 'Validation', detail: 'Please fill Function ID, Name, and Description', life: 3000 })
         return
     }
+    const orgId = await appStore.ensureOrganization()
+    if (!orgId) {
+        toast.add({ severity: 'warn', summary: 'Organization Required', detail: 'Please select an organization first', life: 3000 })
+        return
+    }
     
     saving.value = true
     try {
         const data = {
             ...form.value,
-            organization: appStore.currentOrganization?.id || 1
+            organization: orgId
         }
         
         if (isEdit.value && selectedFunction.value?.id) {

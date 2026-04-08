@@ -161,6 +161,16 @@
                 </div>
                 
                 <div class="topbar-end">
+                    <Dropdown
+                        v-model="selectedOrganizationId"
+                        :options="organizationOptions"
+                        optionLabel="display_name"
+                        optionValue="id"
+                        :placeholder="appStore.locale === 'ar' ? 'اختر الجهة' : 'Select Organization'"
+                        class="org-switcher"
+                        @change="onOrganizationChange"
+                    />
+
                     <!-- Language Switcher -->
                     <Button 
                         :label="appStore.locale === 'ar' ? 'EN' : 'عربي'"
@@ -207,14 +217,16 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import Button from 'primevue/button'
 import Avatar from 'primevue/avatar'
 import Menu from 'primevue/menu'
+import Dropdown from 'primevue/dropdown'
 import { useAppStore } from '@/stores/app'
 import { useAuthStore } from '@/stores/auth'
+import { coreApi } from '@/api'
 
 const router = useRouter()
 const { t, locale } = useI18n()
@@ -222,6 +234,16 @@ const appStore = useAppStore()
 const authStore = useAuthStore()
 
 const userMenuRef = ref(null)
+const organizations = ref([])
+const selectedOrganizationId = ref(null)
+const organizationOptions = computed(() =>
+    organizations.value.map((org) => ({
+        ...org,
+        display_name: appStore.locale === 'ar'
+            ? (org.name_ar || org.name)
+            : (org.name || org.name_ar)
+    }))
+)
 
 const userMenuItems = computed(() => [
     {
@@ -254,6 +276,61 @@ const toggleLanguage = () => {
     appStore.setLocale(newLocale)
     locale.value = newLocale
 }
+
+const loadOrganizations = async () => {
+    try {
+        const ensuredId = await appStore.ensureOrganization()
+        const response = await coreApi.organizations.list()
+        const fetched = response.data.results || response.data || []
+        const current = appStore.currentOrganization
+        if (current && current.id && !fetched.some((org) => Number(org.id) === Number(current.id))) {
+            organizations.value = [current, ...fetched]
+        } else {
+            organizations.value = fetched
+        }
+
+        if ((!appStore.currentOrganization?.id || Number(appStore.currentOrganization?.id) !== Number(ensuredId)) && organizations.value.length > 0) {
+            appStore.setOrganization(organizations.value[0])
+        }
+        selectedOrganizationId.value = appStore.currentOrganization?.id || null
+    } catch (error) {
+        console.error('Failed to load organizations:', error)
+        const current = appStore.currentOrganization
+        organizations.value = current?.id ? [current] : []
+        selectedOrganizationId.value = current?.id || null
+    }
+}
+
+const onOrganizationChange = () => {
+    const selected = organizations.value.find((org) => Number(org.id) === Number(selectedOrganizationId.value)) || null
+    appStore.setOrganization(selected)
+}
+
+watch(
+    () => appStore.currentOrganization?.id,
+    (newOrgId) => {
+        selectedOrganizationId.value = newOrgId || null
+    }
+)
+
+onMounted(() => {
+    if (authStore.isAuthenticated) {
+        loadOrganizations()
+    }
+})
+
+watch(
+    () => authStore.isAuthenticated,
+    (isAuthenticated) => {
+        if (isAuthenticated) {
+            loadOrganizations()
+        } else {
+            organizations.value = []
+            selectedOrganizationId.value = null
+            appStore.setOrganization(null)
+        }
+    }
+)
 </script>
 
 <style scoped>
@@ -438,6 +515,10 @@ const toggleLanguage = () => {
     display: flex;
     align-items: center;
     gap: 0.5rem;
+}
+
+.org-switcher {
+    min-width: 220px;
 }
 
 .lang-switch {

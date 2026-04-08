@@ -82,23 +82,23 @@
                 </div>
                 
                 <div class="form-field">
-                    <label>Description <span class="required">*</span></label>
-                    <Textarea v-model="form.description" rows="3" placeholder="Plan description..." />
-                </div>
-                
-                <div class="form-field">
-                    <label>الوصف (عربي)</label>
-                    <Textarea v-model="form.description_ar" rows="3" placeholder="وصف الخطة..." dir="rtl" />
-                </div>
-                
-                <div class="form-field">
-                    <label>Scope <span class="required">*</span></label>
+                    <label>Scope</label>
                     <Textarea v-model="form.scope" rows="2" placeholder="Plan scope..." />
+                </div>
+                
+                <div class="form-field">
+                    <label>النطاق (عربي)</label>
+                    <Textarea v-model="form.scope_ar" rows="2" placeholder="نطاق الخطة..." dir="rtl" />
                 </div>
                 
                 <div class="form-field">
                     <label>Recovery Procedures</label>
                     <Textarea v-model="form.recovery_procedures" rows="3" placeholder="Recovery procedures..." />
+                </div>
+                
+                <div class="form-field">
+                    <label>إجراءات الاستعادة (عربي)</label>
+                    <Textarea v-model="form.recovery_procedures_ar" rows="3" placeholder="إجراءات الاستعادة..." dir="rtl" />
                 </div>
                 
                 <div class="form-row">
@@ -149,8 +149,8 @@
                     <Tag :severity="getStatusSeverity(selectedPlan.status)">{{ selectedPlan.status }}</Tag>
                 </div>
                 <div class="detail-row">
-                    <span class="label">Description:</span>
-                    <span class="value">{{ selectedPlan.description }}</span>
+                    <span class="label">Scope:</span>
+                    <span class="value">{{ selectedPlan.scope }}</span>
                 </div>
             </div>
         </Dialog>
@@ -190,10 +190,10 @@ const form = ref({
     plan_id: '',
     title: '',
     title_ar: '',
-    description: '',
-    description_ar: '',
     scope: '',
+    scope_ar: '',
     recovery_procedures: '',
+    recovery_procedures_ar: '',
     version: '1.0',
     status: 'draft',
     review_date: null
@@ -201,19 +201,21 @@ const form = ref({
 
 const statusOptions = [
     { label: 'Draft - مسودة', value: 'draft' },
-    { label: 'Under Review - قيد المراجعة', value: 'under_review' },
+    { label: 'Pending Approval - بانتظار الاعتماد', value: 'pending_approval' },
     { label: 'Approved - معتمد', value: 'approved' },
     { label: 'Active - نشط', value: 'active' },
-    { label: 'Expired - منتهي', value: 'expired' }
+    { label: 'Under Revision - قيد التحديث', value: 'under_revision' },
+    { label: 'Retired - متقاعد', value: 'retired' }
 ]
 
 const getStatusSeverity = (status) => {
     const map = {
         draft: 'secondary',
-        under_review: 'warn',
+        pending_approval: 'warn',
         approved: 'info',
         active: 'success',
-        expired: 'danger'
+        under_revision: 'danger',
+        retired: 'secondary'
     }
     return map[status] || 'info'
 }
@@ -223,10 +225,10 @@ const resetForm = () => {
         plan_id: '',
         title: '',
         title_ar: '',
-        description: '',
-        description_ar: '',
         scope: '',
+        scope_ar: '',
         recovery_procedures: '',
+        recovery_procedures_ar: '',
         version: '1.0',
         status: 'draft',
         review_date: null
@@ -269,6 +271,11 @@ const savePlan = async () => {
         toast.add({ severity: 'warn', summary: 'Validation', detail: 'Please fill Plan ID and Title', life: 3000 })
         return
     }
+    const orgId = await appStore.ensureOrganization()
+    if (!orgId) {
+        toast.add({ severity: 'warn', summary: 'Organization Required', detail: 'Please select an organization first', life: 3000 })
+        return
+    }
     
     saving.value = true
     try {
@@ -282,7 +289,7 @@ const savePlan = async () => {
         
         const data = {
             ...form.value,
-            organization: appStore.currentOrganization?.id || 1,
+            organization: orgId,
             review_date: formatDate(form.value.review_date)
         }
         
