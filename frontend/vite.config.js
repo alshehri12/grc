@@ -12,8 +12,18 @@ export default defineConfig({
     },
     server: {
         port: 5173,
+        host: true, // listen on the LAN too (http://<your-ip>:5173)
+        // Allow access through common tunnel domains (Vite blocks unknown hosts by default)
+        allowedHosts: [
+            '.ngrok-free.app', '.ngrok-free.dev', '.ngrok.app', '.ngrok.dev',
+            '.trycloudflare.com', '.ts.net'
+        ],
         proxy: {
             '/api': {
+                target: 'http://localhost:8000',
+                changeOrigin: true
+            },
+            '/media': {
                 target: 'http://localhost:8000',
                 changeOrigin: true
             }

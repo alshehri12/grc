@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useAppStore } from '@/stores/app'
 
 // Layouts
 import MainLayout from '@/layouts/MainLayout.vue'
@@ -172,14 +173,19 @@ const router = createRouter({
 })
 
 // Navigation guard
-router.beforeEach((to, from, next) => {
+router.beforeEach(async (to, from, next) => {
     const authStore = useAuthStore()
-    
+
     if (to.meta.requiresAuth && !authStore.isAuthenticated) {
         next({ name: 'Login' })
     } else if (to.meta.guest && authStore.isAuthenticated) {
         next({ name: 'Dashboard' })
     } else {
+        // Resolve a valid organization before any org-scoped page mounts
+        // (verified once per session; drops a stale ID left in localStorage).
+        if (to.meta.requiresAuth) {
+            await useAppStore().ensureOrganization()
+        }
         next()
     }
 })

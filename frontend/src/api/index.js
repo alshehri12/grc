@@ -1,7 +1,9 @@
 import axios from 'axios'
 
 const api = axios.create({
-    baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000/api',
+    // Relative by default: the Vite dev server proxies /api to Django, so the app
+    // works from any host (localhost, LAN IP, ngrok/Cloudflare/Tailscale URL).
+    baseURL: import.meta.env.VITE_API_URL || '/api',
     headers: {
         'Content-Type': 'application/json'
     }

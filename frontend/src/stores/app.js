@@ -6,6 +6,7 @@ export const useAppStore = defineStore('app', {
         locale: localStorage.getItem('locale') || 'en',
         darkMode: localStorage.getItem('darkMode') === 'true',
         sidebarCollapsed: false,
+        _orgVerifiedId: null,
         currentOrganization: localStorage.getItem('currentOrganization') 
             ? JSON.parse(localStorage.getItem('currentOrganization')) 
             : null
@@ -80,9 +81,23 @@ export const useAppStore = defineStore('app', {
         },
 
         async ensureOrganization() {
-            // 1) Use existing selected organization if available.
+            // 1) Use existing selected organization if available, but verify it still
+            //    exists once per session (it may have been deleted or the DB re-seeded).
             if (this.organizationId) {
-                return this.organizationId
+                if (this._orgVerifiedId === this.organizationId) {
+                    return this.organizationId
+                }
+                try {
+                    const res = await coreApi.organizations.get(this.organizationId)
+                    this.setOrganization(res.data)
+                    this._orgVerifiedId = Number(res.data.id)
+                    return this._orgVerifiedId
+                } catch (error) {
+                    if (error.response?.status !== 404) {
+                        return this.organizationId  // network/auth issue: keep current selection
+                    }
+                    this.setOrganization(null)  // stale ID: fall through and pick a valid one
+                }
             }
 
             // 2) Try loading organizations and auto-select first available.
@@ -92,7 +107,8 @@ export const useAppStore = defineStore('app', {
                 if (Array.isArray(organizations) && organizations.length > 0) {
                     const selected = organizations.find((org) => org.is_active !== false) || organizations[0]
                     this.setOrganization(selected)
-                    return Number(selected.id) || null
+                    this._orgVerifiedId = Number(selected.id) || null
+                    return this._orgVerifiedId
                 }
 
                 // 2.1) No organizations exist: create a default one so org-scoped forms can work.
