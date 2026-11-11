@@ -67,12 +67,15 @@ import { riskApi } from '@/api'
 
 const appStore = useAppStore()
 const matrix = ref([[],[],[],[],[]])
+// Level thresholds come from the backend (single source of truth, configurable per organization).
+const thresholds = ref({ medium: 6, high: 12, critical: 20 })
 
 const getCellClass = (likelihood, impact) => {
     const score = (likelihood + 1) * (impact + 1)
-    if (score >= 20) return 'critical'
-    if (score >= 12) return 'high'
-    if (score >= 6) return 'medium'
+    const t = thresholds.value
+    if (score >= t.critical) return 'critical'
+    if (score >= t.high) return 'high'
+    if (score >= t.medium) return 'medium'
     return 'low'
 }
 
@@ -81,6 +84,7 @@ const loadMatrix = async () => {
         const orgId = appStore.currentOrganization?.id
         const response = await riskApi.risks.matrix(orgId)
         matrix.value = response.data.matrix
+        if (response.data.thresholds) thresholds.value = response.data.thresholds
     } catch (error) {
         console.error('Failed to load risk matrix:', error)
     }

@@ -1,9 +1,8 @@
 """
 Risk app views.
 """
-import json
-import time
 from rest_framework import viewsets, status
+from core.audit import AuditedModelViewSet
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
@@ -17,18 +16,9 @@ from .serializers import (
     RiskAssessmentSerializer, RiskTreatmentSerializer, RiskAcceptanceSerializer
 )
 
-# region agent log
-DEBUG_LOG_PATH = r'c:\Users\aalshehre\GRC\grc_system\grc\.cursor\debug.log'
-def debug_log(location, message, data, hypothesis_id):
-    try:
-        log_entry = json.dumps({'location': location, 'message': message, 'data': data, 'timestamp': int(time.time() * 1000), 'sessionId': 'debug-session', 'hypothesisId': hypothesis_id})
-        with open(DEBUG_LOG_PATH, 'a', encoding='utf-8') as f:
-            f.write(log_entry + '\n')
-    except: pass
-# endregion
 
 
-class AssetCategoryViewSet(viewsets.ModelViewSet):
+class AssetCategoryViewSet(AuditedModelViewSet):
     queryset = AssetCategory.objects.all()
     serializer_class = AssetCategorySerializer
     filter_backends = [DjangoFilterBackend, SearchFilter]
@@ -36,7 +26,7 @@ class AssetCategoryViewSet(viewsets.ModelViewSet):
     search_fields = ['name', 'name_ar', 'code']
 
 
-class AssetViewSet(viewsets.ModelViewSet):
+class AssetViewSet(AuditedModelViewSet):
     queryset = Asset.objects.select_related(
         'organization', 'category', 'owner', 'custodian', 'department'
     ).all()
@@ -52,7 +42,7 @@ class AssetViewSet(viewsets.ModelViewSet):
         return AssetSerializer
 
 
-class RiskCategoryViewSet(viewsets.ModelViewSet):
+class RiskCategoryViewSet(AuditedModelViewSet):
     queryset = RiskCategory.objects.all()
     serializer_class = RiskCategorySerializer
     filter_backends = [DjangoFilterBackend, SearchFilter]
@@ -60,7 +50,7 @@ class RiskCategoryViewSet(viewsets.ModelViewSet):
     search_fields = ['name', 'name_ar', 'code']
 
 
-class RiskViewSet(viewsets.ModelViewSet):
+class RiskViewSet(AuditedModelViewSet):
     queryset = Risk.objects.select_related(
         'organization', 'category', 'owner', 'department', 'created_by'
     ).prefetch_related('assets', 'controls').all()
@@ -75,23 +65,6 @@ class RiskViewSet(viewsets.ModelViewSet):
             return RiskListSerializer
         return RiskSerializer
     
-    # region agent log
-    def create(self, request, *args, **kwargs):
-        debug_log('RiskViewSet.create:entry', 'Create risk request received', {'request_data': request.data, 'user': str(request.user)}, 'RISK')
-        serializer = self.get_serializer(data=request.data)
-        if not serializer.is_valid():
-            debug_log('RiskViewSet.create:validation_error', 'Serializer validation failed', {'errors': serializer.errors, 'data': request.data}, 'RISK')
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        debug_log('RiskViewSet.create:validation_passed', 'Serializer validation passed', {}, 'RISK')
-        try:
-            self.perform_create(serializer)
-            debug_log('RiskViewSet.create:success', 'Risk created successfully', {'risk_id': serializer.data.get('id')}, 'RISK')
-            headers = self.get_success_headers(serializer.data)
-            return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
-        except Exception as e:
-            debug_log('RiskViewSet.create:exception', 'Exception during risk creation', {'error': str(e), 'error_type': type(e).__name__}, 'RISK')
-            raise
-    # endregion
     
     @action(detail=False, methods=['get'])
     def matrix(self, request):
@@ -101,9 +74,11 @@ class RiskViewSet(viewsets.ModelViewSet):
         if org_id:
             risks = risks.filter(organization_id=org_id)
         
-        # Create 5x5 matrix
+        from risk.utils import get_risk_thresholds, get_risk_levels, build_matrix_cells
+
+        # Create 5x5 matrix (rows = likelihood 5..1, columns = impact 1..5)
         matrix = [[[] for _ in range(5)] for _ in range(5)]
-        
+
         for risk in risks.filter(status__in=['identified', 'assessed', 'treating', 'monitoring']):
             likelihood = min(risk.inherent_likelihood - 1, 4)
             impact = min(risk.inherent_impact - 1, 4)
@@ -112,9 +87,28 @@ class RiskViewSet(viewsets.ModelViewSet):
                 'risk_id': risk.risk_id,
                 'title': risk.title,
                 'title_ar': risk.title_ar,
+                'score': risk.inherent_risk_score,
+                'level': risk.risk_level,
             })
-        
-        return Response({'matrix': matrix})
+
+        return Response({
+            'matrix': matrix,
+            'thresholds': get_risk_thresholds(org_id),
+            'levels': get_risk_levels(org_id),
+            'cells': build_matrix_cells(org_id),
+        })
+
+    @action(detail=False, methods=['get'])
+    def matrix_config(self, request):
+        """Risk level thresholds and labels used everywhere (model, stats, dashboard, UI)."""
+        from risk.utils import get_risk_thresholds, get_risk_levels, LIKELIHOOD_LABELS, IMPACT_LABELS
+        org_id = request.query_params.get('organization')
+        return Response({
+            'thresholds': get_risk_thresholds(org_id),
+            'levels': get_risk_levels(org_id),
+            'likelihood_labels': LIKELIHOOD_LABELS,
+            'impact_labels': IMPACT_LABELS,
+        })
     
     @action(detail=False, methods=['get'])
     def statistics(self, request):
@@ -124,20 +118,23 @@ class RiskViewSet(viewsets.ModelViewSet):
         if org_id:
             risks = risks.filter(organization_id=org_id)
         
+        from risk.utils import get_risk_level, get_risk_thresholds
+
+        by_level = {'critical': 0, 'high': 0, 'medium': 0, 'low': 0}
+        residual_by_level = {'critical': 0, 'high': 0, 'medium': 0, 'low': 0}
+        for likelihood, impact, r_likelihood, r_impact in risks.values_list(
+                'inherent_likelihood', 'inherent_impact', 'residual_likelihood', 'residual_impact'):
+            by_level[get_risk_level(likelihood * impact, org_id)] += 1
+            if r_likelihood and r_impact:
+                residual_by_level[get_risk_level(r_likelihood * r_impact, org_id)] += 1
+
         stats = {
             'total': risks.count(),
             'by_status': dict(risks.values_list('status').annotate(count=Count('id'))),
             'by_type': dict(risks.values_list('risk_type').annotate(count=Count('id'))),
-            'by_level': {
-                'critical': risks.filter(inherent_likelihood__gte=4, inherent_impact__gte=4).count(),
-                'high': risks.filter(inherent_likelihood__gte=3, inherent_impact__gte=3).exclude(
-                    inherent_likelihood__gte=4, inherent_impact__gte=4
-                ).count(),
-                'medium': risks.filter(inherent_likelihood__gte=2, inherent_impact__gte=2).exclude(
-                    inherent_likelihood__gte=3, inherent_impact__gte=3
-                ).count(),
-                'low': risks.filter(inherent_likelihood__lte=2).filter(inherent_impact__lte=2).count(),
-            }
+            'by_level': by_level,
+            'residual_by_level': residual_by_level,
+            'thresholds': get_risk_thresholds(org_id),
         }
         return Response(stats)
     
@@ -218,7 +215,7 @@ class RiskViewSet(viewsets.ModelViewSet):
         return Response(aggregate_risks_by_category(risks))
 
 
-class RiskAssessmentViewSet(viewsets.ModelViewSet):
+class RiskAssessmentViewSet(AuditedModelViewSet):
     queryset = RiskAssessment.objects.select_related('risk', 'assessor', 'approved_by').all()
     serializer_class = RiskAssessmentSerializer
     filter_backends = [DjangoFilterBackend, OrderingFilter]
@@ -226,7 +223,7 @@ class RiskAssessmentViewSet(viewsets.ModelViewSet):
     ordering = ['-assessment_date']
 
 
-class RiskTreatmentViewSet(viewsets.ModelViewSet):
+class RiskTreatmentViewSet(AuditedModelViewSet):
     queryset = RiskTreatment.objects.select_related('risk', 'owner', 'created_by').all()
     serializer_class = RiskTreatmentSerializer
     filter_backends = [DjangoFilterBackend, OrderingFilter]
@@ -242,31 +239,57 @@ class RiskTreatmentViewSet(viewsets.ModelViewSet):
         return Response(RiskTreatmentSerializer(treatment).data)
 
 
-class RiskAcceptanceViewSet(viewsets.ModelViewSet):
+class RiskAcceptanceViewSet(AuditedModelViewSet):
     queryset = RiskAcceptance.objects.select_related('risk', 'requested_by', 'approved_by').all()
     serializer_class = RiskAcceptanceSerializer
     filter_backends = [DjangoFilterBackend, OrderingFilter]
     filterset_fields = ['risk', 'status', 'requested_by']
     ordering = ['-created_at']
     
+    def _decide(self, request, decision):
+        """
+        Approve/reject a risk acceptance. Goes through the workflow approval when
+        one is pending (so segregation of duties and audit trail apply); otherwise
+        only a manager/admin who is not the requester may decide directly.
+        """
+        from django.utils import timezone
+        from core.audit import log_action
+        from core.permissions import user_can_approve
+        from workflow.services import WorkflowService, WorkflowPermissionError
+
+        acceptance = self.get_object()
+        if acceptance.status != 'pending':
+            return Response({'error': 'Acceptance has already been decided'}, status=status.HTTP_400_BAD_REQUEST)
+        if acceptance.requested_by_id == request.user.pk:
+            return Response({'error': 'You cannot decide your own acceptance request'}, status=status.HTTP_403_FORBIDDEN)
+        if not user_can_approve(request.user):
+            return Response({'error': 'Manager or administrator role required'}, status=status.HTTP_403_FORBIDDEN)
+
+        comments = request.data.get('comments', '')
+        workflow = WorkflowService.get_workflow_for_object(acceptance)
+        pending = workflow.approvals.filter(status='pending').first() if workflow else None
+        try:
+            if pending:
+                WorkflowService.handle_approval_decision(pending, decision, request.user, comments, request=request)
+                acceptance.refresh_from_db()
+            else:
+                acceptance.status = decision
+            acceptance.approved_by = request.user
+            acceptance.approved_date = timezone.now().date()
+            acceptance.approval_comments = comments
+            acceptance.save()
+            if not pending:
+                log_action(request.user, 'approve' if decision == 'approved' else 'reject', acceptance,
+                           changes={'comments': comments}, request=request)
+        except (ValueError, WorkflowPermissionError) as exc:
+            code = status.HTTP_403_FORBIDDEN if isinstance(exc, WorkflowPermissionError) else status.HTTP_400_BAD_REQUEST
+            return Response({'error': str(exc)}, status=code)
+        return Response(RiskAcceptanceSerializer(acceptance).data)
+
     @action(detail=True, methods=['post'])
     def approve(self, request, pk=None):
-        from django.utils import timezone
-        acceptance = self.get_object()
-        acceptance.status = 'approved'
-        acceptance.approved_by = request.user
-        acceptance.approved_date = timezone.now().date()
-        acceptance.approval_comments = request.data.get('comments', '')
-        acceptance.save()
-        return Response(RiskAcceptanceSerializer(acceptance).data)
-    
+        return self._decide(request, 'approved')
+
     @action(detail=True, methods=['post'])
     def reject(self, request, pk=None):
-        from django.utils import timezone
-        acceptance = self.get_object()
-        acceptance.status = 'rejected'
-        acceptance.approved_by = request.user
-        acceptance.approved_date = timezone.now().date()
-        acceptance.approval_comments = request.data.get('comments', '')
-        acceptance.save()
-        return Response(RiskAcceptanceSerializer(acceptance).data)
+        return self._decide(request, 'rejected')

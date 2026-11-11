@@ -328,31 +328,15 @@ class Risk(models.Model):
     
     @property
     def risk_level(self):
-        """Get risk level based on inherent score."""
-        score = self.inherent_risk_score
-        if score >= 20:
-            return 'critical'
-        elif score >= 12:
-            return 'high'
-        elif score >= 6:
-            return 'medium'
-        else:
-            return 'low'
-    
+        """Inherent risk level from the organization's single risk-matrix thresholds."""
+        from risk.utils import get_risk_level
+        return get_risk_level(self.inherent_risk_score, self.organization_id)
+
     @property
     def residual_risk_level(self):
-        """Get residual risk level."""
-        score = self.residual_risk_score
-        if score is None:
-            return None
-        if score >= 20:
-            return 'critical'
-        elif score >= 12:
-            return 'high'
-        elif score >= 6:
-            return 'medium'
-        else:
-            return 'low'
+        """Residual risk level from the same thresholds (None when not yet assessed)."""
+        from risk.utils import get_risk_level
+        return get_risk_level(self.residual_risk_score, self.organization_id)
     
     @property
     def risk_reduction_percentage(self):

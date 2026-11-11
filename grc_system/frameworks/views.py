@@ -2,6 +2,7 @@
 Frameworks app views.
 """
 from rest_framework import viewsets, status
+from core.audit import AuditedModelViewSet
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
@@ -13,7 +14,7 @@ from .serializers import (
 )
 
 
-class FrameworkTemplateViewSet(viewsets.ModelViewSet):
+class FrameworkTemplateViewSet(AuditedModelViewSet):
     queryset = FrameworkTemplate.objects.all()
     serializer_class = FrameworkTemplateSerializer
     filter_backends = [DjangoFilterBackend, SearchFilter]
@@ -77,7 +78,7 @@ class FrameworkTemplateViewSet(viewsets.ModelViewSet):
         }, status=201)
 
 
-class ControlMappingViewSet(viewsets.ModelViewSet):
+class ControlMappingViewSet(AuditedModelViewSet):
     queryset = ControlMapping.objects.all()
     serializer_class = ControlMappingSerializer
     filter_backends = [DjangoFilterBackend]
@@ -100,7 +101,7 @@ class ControlMappingViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
 
-class RegulatoryRequirementViewSet(viewsets.ModelViewSet):
+class RegulatoryRequirementViewSet(AuditedModelViewSet):
     queryset = RegulatoryRequirement.objects.all()
     serializer_class = RegulatoryRequirementSerializer
     filter_backends = [DjangoFilterBackend, SearchFilter]

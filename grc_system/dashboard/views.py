@@ -2,6 +2,7 @@
 Dashboard app views.
 """
 from rest_framework import viewsets, status
+from core.audit import AuditedModelViewSet
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
@@ -20,7 +21,7 @@ from .serializers import (
 )
 
 
-class DashboardWidgetViewSet(viewsets.ModelViewSet):
+class DashboardWidgetViewSet(AuditedModelViewSet):
     queryset = DashboardWidget.objects.all()
     serializer_class = DashboardWidgetSerializer
     filter_backends = [DjangoFilterBackend, SearchFilter]
@@ -28,7 +29,7 @@ class DashboardWidgetViewSet(viewsets.ModelViewSet):
     search_fields = ['name', 'name_ar']
 
 
-class DashboardViewSet(viewsets.ModelViewSet):
+class DashboardViewSet(AuditedModelViewSet):
     queryset = Dashboard.objects.prefetch_related(
         'widget_positions', 'widget_positions__widget', 'allowed_roles'
     ).all()
@@ -69,56 +70,41 @@ class DashboardViewSet(viewsets.ModelViewSet):
         if org_id:
             risks = risks.filter(organization_id=org_id)
         
-        # Calculate risk levels properly
-        critical_count = 0
-        high_count = 0
-        medium_count = 0
-        low_count = 0
-        
-        for risk in risks:
-            score = risk.inherent_likelihood * risk.inherent_impact
-            if score >= 20:
-                critical_count += 1
-            elif score >= 12:
-                high_count += 1
-            elif score >= 6:
-                medium_count += 1
-            else:
-                low_count += 1
-        
+        # Risk levels come from the single configurable risk matrix (risk.utils)
+        from risk.utils import get_risk_level, get_risk_thresholds
+        by_level = {'critical': 0, 'high': 0, 'medium': 0, 'low': 0}
+        for likelihood, impact in risks.values_list('inherent_likelihood', 'inherent_impact'):
+            by_level[get_risk_level(likelihood * impact, org_id)] += 1
+
         risk_summary = {
             'total': risks.count(),
-            'critical': critical_count,
-            'high': high_count,
-            'medium': medium_count,
-            'low': low_count,
+            **by_level,
             'treating': risks.filter(status='treating').count(),
-            'by_level': {
-                'critical': critical_count,
-                'high': high_count,
-                'medium': medium_count,
-                'low': low_count,
-            }
+            'by_level': by_level,
+            'thresholds': get_risk_thresholds(org_id),
         }
-        
-        # Compliance summary
+
+        # Compliance summary (rate is over applicable controls; partial counts half)
         impls = ControlImplementation.objects.all()
         if org_id:
             impls = impls.filter(organization_id=org_id)
-        
+
         total_impls = impls.count()
         implemented = impls.filter(status='implemented').count()
-        partial = impls.filter(status='partial').count()
-        not_implemented = impls.filter(status__in=['not_implemented', 'not_applicable']).count()
-        compliance_rate = (implemented / total_impls * 100) if total_impls > 0 else 0
-        
+        partial = impls.filter(status='partially_implemented').count()
+        not_applicable = impls.filter(status='not_applicable').count()
+        not_implemented = total_impls - implemented - partial - not_applicable
+        applicable = total_impls - not_applicable
+        compliance_rate = ((implemented + 0.5 * partial) / applicable * 100) if applicable > 0 else 0
+
         compliance_summary = {
             'total_controls': total_impls,
             'implemented': implemented,
             'partial': partial,
             'not_implemented': not_implemented,
+            'not_applicable': not_applicable,
             'compliance_rate': round(compliance_rate, 1),
-            'avg_maturity': impls.aggregate(avg=Avg('maturity_level'))['avg'] or 0,
+            'avg_maturity': round(impls.exclude(status='not_applicable').aggregate(avg=Avg('maturity_level'))['avg'] or 0, 2),
         }
         
         # Audit findings
@@ -201,7 +187,7 @@ class DashboardViewSet(viewsets.ModelViewSet):
         })
 
 
-class ReportTemplateViewSet(viewsets.ModelViewSet):
+class ReportTemplateViewSet(AuditedModelViewSet):
     queryset = ReportTemplate.objects.all()
     serializer_class = ReportTemplateSerializer
     filter_backends = [DjangoFilterBackend, SearchFilter]
@@ -209,7 +195,7 @@ class ReportTemplateViewSet(viewsets.ModelViewSet):
     search_fields = ['name', 'name_ar', 'code']
 
 
-class GeneratedReportViewSet(viewsets.ModelViewSet):
+class GeneratedReportViewSet(AuditedModelViewSet):
     queryset = GeneratedReport.objects.select_related('organization', 'template', 'generated_by').all()
     filter_backends = [DjangoFilterBackend, OrderingFilter]
     filterset_fields = ['organization', 'template', 'status', 'generated_by']
@@ -246,7 +232,7 @@ class GeneratedReportViewSet(viewsets.ModelViewSet):
         return Response(GeneratedReportSerializer(report).data, status=201)
 
 
-class KPIViewSet(viewsets.ModelViewSet):
+class KPIViewSet(AuditedModelViewSet):
     queryset = KPI.objects.all()
     serializer_class = KPISerializer
     filter_backends = [DjangoFilterBackend, SearchFilter]
@@ -254,7 +240,7 @@ class KPIViewSet(viewsets.ModelViewSet):
     search_fields = ['name', 'name_ar', 'code']
 
 
-class KPIValueViewSet(viewsets.ModelViewSet):
+class KPIValueViewSet(AuditedModelViewSet):
     queryset = KPIValue.objects.select_related('organization', 'kpi').all()
     serializer_class = KPIValueSerializer
     filter_backends = [DjangoFilterBackend, OrderingFilter]

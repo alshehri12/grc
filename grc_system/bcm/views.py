@@ -1,9 +1,8 @@
 """
 BCM app views.
 """
-import json
-import time
 from rest_framework import viewsets, status
+from core.audit import AuditedModelViewSet
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
@@ -23,18 +22,9 @@ from .serializers import (
     BCMTestSerializer, BCMTestListSerializer, BCMTestFindingSerializer
 )
 
-# region agent log
-DEBUG_LOG_PATH = r'c:\Users\aalshehre\GRC\grc_system\grc\.cursor\debug.log'
-def debug_log(location, message, data, hypothesis_id):
-    try:
-        log_entry = json.dumps({'location': location, 'message': message, 'data': data, 'timestamp': int(time.time() * 1000), 'sessionId': 'debug-session', 'hypothesisId': hypothesis_id})
-        with open(DEBUG_LOG_PATH, 'a', encoding='utf-8') as f:
-            f.write(log_entry + '\n')
-    except: pass
-# endregion
 
 
-class BusinessFunctionViewSet(viewsets.ModelViewSet):
+class BusinessFunctionViewSet(AuditedModelViewSet):
     queryset = BusinessFunction.objects.select_related(
         'organization', 'department', 'owner', 'parent_function'
     ).all()
@@ -138,7 +128,7 @@ class BusinessFunctionViewSet(viewsets.ModelViewSet):
         }
 
 
-class BusinessImpactAnalysisViewSet(viewsets.ModelViewSet):
+class BusinessImpactAnalysisViewSet(AuditedModelViewSet):
     queryset = BusinessImpactAnalysis.objects.select_related(
         'organization', 'business_function', 'assessor', 'approved_by'
     ).all()
@@ -205,7 +195,7 @@ class BusinessImpactAnalysisViewSet(viewsets.ModelViewSet):
         return warnings
 
 
-class BCPlanViewSet(viewsets.ModelViewSet):
+class BCPlanViewSet(AuditedModelViewSet):
     queryset = BCPlan.objects.select_related(
         'organization', 'owner', 'approved_by', 'created_by'
     ).prefetch_related('covered_functions').all()
@@ -219,23 +209,6 @@ class BCPlanViewSet(viewsets.ModelViewSet):
             return BCPlanListSerializer
         return BCPlanSerializer
     
-    # region agent log
-    def create(self, request, *args, **kwargs):
-        debug_log('BCPlanViewSet.create:entry', 'Create BC plan request received', {'request_data': request.data}, 'BCPLAN')
-        serializer = self.get_serializer(data=request.data)
-        if not serializer.is_valid():
-            debug_log('BCPlanViewSet.create:validation_error', 'Serializer validation failed', {'errors': serializer.errors}, 'BCPLAN')
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        debug_log('BCPlanViewSet.create:validation_passed', 'Serializer validation passed', {}, 'BCPLAN')
-        try:
-            self.perform_create(serializer)
-            debug_log('BCPlanViewSet.create:success', 'BC plan created successfully', {'id': serializer.data.get('id')}, 'BCPLAN')
-            headers = self.get_success_headers(serializer.data)
-            return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
-        except Exception as e:
-            debug_log('BCPlanViewSet.create:exception', 'Exception during BC plan creation', {'error': str(e)}, 'BCPLAN')
-            raise
-    # endregion
     
     @action(detail=True, methods=['get'])
     def coverage_analysis(self, request, pk=None):
@@ -297,7 +270,7 @@ class BCPlanViewSet(viewsets.ModelViewSet):
         return recommendations
 
 
-class DisasterRecoveryPlanViewSet(viewsets.ModelViewSet):
+class DisasterRecoveryPlanViewSet(AuditedModelViewSet):
     queryset = DisasterRecoveryPlan.objects.select_related(
         'organization', 'bc_plan', 'owner', 'approved_by', 'created_by'
     ).all()
@@ -307,26 +280,9 @@ class DisasterRecoveryPlanViewSet(viewsets.ModelViewSet):
     search_fields = ['title', 'title_ar', 'plan_id']
     ordering = ['-updated_at']
     
-    # region agent log
-    def create(self, request, *args, **kwargs):
-        debug_log('DRPlanViewSet.create:entry', 'Create DR plan request received', {'request_data': request.data}, 'DRPLAN')
-        serializer = self.get_serializer(data=request.data)
-        if not serializer.is_valid():
-            debug_log('DRPlanViewSet.create:validation_error', 'Serializer validation failed', {'errors': serializer.errors}, 'DRPLAN')
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        debug_log('DRPlanViewSet.create:validation_passed', 'Serializer validation passed', {}, 'DRPLAN')
-        try:
-            self.perform_create(serializer)
-            debug_log('DRPlanViewSet.create:success', 'DR plan created successfully', {'id': serializer.data.get('id')}, 'DRPLAN')
-            headers = self.get_success_headers(serializer.data)
-            return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
-        except Exception as e:
-            debug_log('DRPlanViewSet.create:exception', 'Exception during DR plan creation', {'error': str(e)}, 'DRPLAN')
-            raise
-    # endregion
 
 
-class CrisisManagementTeamViewSet(viewsets.ModelViewSet):
+class CrisisManagementTeamViewSet(AuditedModelViewSet):
     queryset = CrisisManagementTeam.objects.prefetch_related('members').all()
     serializer_class = CrisisManagementTeamSerializer
     filter_backends = [DjangoFilterBackend, SearchFilter]
@@ -334,14 +290,14 @@ class CrisisManagementTeamViewSet(viewsets.ModelViewSet):
     search_fields = ['name', 'name_ar']
 
 
-class CrisisTeamMemberViewSet(viewsets.ModelViewSet):
+class CrisisTeamMemberViewSet(AuditedModelViewSet):
     queryset = CrisisTeamMember.objects.select_related('team', 'user', 'backup_member').all()
     serializer_class = CrisisTeamMemberSerializer
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['team', 'role', 'is_primary']
 
 
-class CallTreeViewSet(viewsets.ModelViewSet):
+class CallTreeViewSet(AuditedModelViewSet):
     queryset = CallTree.objects.prefetch_related('nodes').all()
     serializer_class = CallTreeSerializer
     filter_backends = [DjangoFilterBackend, SearchFilter]
@@ -349,7 +305,7 @@ class CallTreeViewSet(viewsets.ModelViewSet):
     search_fields = ['name', 'name_ar']
 
 
-class CrisisIncidentViewSet(viewsets.ModelViewSet):
+class CrisisIncidentViewSet(AuditedModelViewSet):
     queryset = CrisisIncident.objects.select_related(
         'organization', 'crisis_team', 'incident_commander',
         'activated_bc_plan', 'activated_dr_plan', 'reported_by'
@@ -364,26 +320,44 @@ class CrisisIncidentViewSet(viewsets.ModelViewSet):
             return CrisisIncidentListSerializer
         return CrisisIncidentSerializer
     
+    def _can_command(self, incident, user):
+        from core.permissions import user_can_approve
+        return user_can_approve(user) or user.pk in (incident.incident_commander_id, incident.reported_by_id)
+
     @action(detail=True, methods=['post'])
     def declare_crisis(self, request, pk=None):
         from django.utils import timezone
+        from core.audit import log_action
         incident = self.get_object()
+        if not self._can_command(incident, request.user):
+            return Response({'error': 'Only the incident commander or a manager can declare a crisis'}, status=403)
+        previous = incident.status
         incident.status = 'responding'
         incident.declared_at = timezone.now()
+        if not incident.incident_commander_id:
+            incident.incident_commander = request.user
         incident.save()
+        log_action(request.user, 'update', incident, changes={'status': [previous, 'responding'], 'declared': True}, request=request)
         return Response(CrisisIncidentSerializer(incident).data)
-    
+
     @action(detail=True, methods=['post'])
     def resolve(self, request, pk=None):
         from django.utils import timezone
+        from core.audit import log_action
         incident = self.get_object()
+        if not self._can_command(incident, request.user):
+            return Response({'error': 'Only the incident commander or a manager can resolve an incident'}, status=403)
+        previous = incident.status
         incident.status = 'resolved'
         incident.resolved_at = timezone.now()
+        if request.data.get('lessons_learned'):
+            incident.lessons_learned = request.data['lessons_learned']
         incident.save()
+        log_action(request.user, 'update', incident, changes={'status': [previous, 'resolved']}, request=request)
         return Response(CrisisIncidentSerializer(incident).data)
 
 
-class BCMTestViewSet(viewsets.ModelViewSet):
+class BCMTestViewSet(AuditedModelViewSet):
     queryset = BCMTest.objects.select_related(
         'organization', 'bc_plan', 'dr_plan', 'coordinator', 'created_by'
     ).prefetch_related('participants', 'findings').all()
@@ -397,85 +371,54 @@ class BCMTestViewSet(viewsets.ModelViewSet):
             return BCMTestListSerializer
         return BCMTestSerializer
     
-    def create(self, request, *args, **kwargs):
-        # #region agent log
-        import json
-        from django.utils import timezone
-        log_entry = {
-            "location": "BCMTestViewSet.create:entry",
-            "message": "Create BCM test request received",
-            "data": {"request_data": request.data},
-            "timestamp": timezone.now().timestamp() * 1000,
-            "sessionId": "debug-session",
-            "hypothesisId": "BCMTEST"
-        }
-        with open('c:\\Users\\aalshehre\\GRC\\grc_system\\grc\\.cursor\\debug.log', 'a') as f:
-            f.write(json.dumps(log_entry) + '\n')
-        # #endregion
-        serializer = self.get_serializer(data=request.data)
-        if not serializer.is_valid():
-            # #region agent log
-            log_entry = {
-                "location": "BCMTestViewSet.create:validation_error",
-                "message": "Serializer validation failed",
-                "data": {"errors": serializer.errors, "data": serializer.initial_data},
-                "timestamp": timezone.now().timestamp() * 1000,
-                "sessionId": "debug-session",
-                "hypothesisId": "BCMTEST"
-            }
-            with open('c:\\Users\\aalshehre\\GRC\\grc_system\\grc\\.cursor\\debug.log', 'a') as f:
-                f.write(json.dumps(log_entry) + '\n')
-            # #endregion
-            return Response(serializer.errors, status=400)
-        # #region agent log
-        log_entry = {
-            "location": "BCMTestViewSet.create:validation_passed",
-            "message": "Serializer validation passed",
-            "data": {},
-            "timestamp": timezone.now().timestamp() * 1000,
-            "sessionId": "debug-session",
-            "hypothesisId": "BCMTEST"
-        }
-        with open('c:\\Users\\aalshehre\\GRC\\grc_system\\grc\\.cursor\\debug.log', 'a') as f:
-            f.write(json.dumps(log_entry) + '\n')
-        # #endregion
-        test = serializer.save()
-        # #region agent log
-        log_entry = {
-            "location": "BCMTestViewSet.create:success",
-            "message": "BCM test created successfully",
-            "data": {"id": test.id},
-            "timestamp": timezone.now().timestamp() * 1000,
-            "sessionId": "debug-session",
-            "hypothesisId": "BCMTEST"
-        }
-        with open('c:\\Users\\aalshehre\\GRC\\grc_system\\grc\\.cursor\\debug.log', 'a') as f:
-            f.write(json.dumps(log_entry) + '\n')
-        # #endregion
-        return Response(self.get_serializer(test).data, status=201)
-    
+    def _can_run(self, test, user):
+        from core.permissions import user_can_approve
+        return user_can_approve(user) or user.pk in (test.coordinator_id, test.created_by_id)
+
     @action(detail=True, methods=['post'])
     def start(self, request, pk=None):
         from django.utils import timezone
+        from core.audit import log_action
         test = self.get_object()
+        if not self._can_run(test, request.user):
+            return Response({'error': 'Only the test coordinator or a manager can start a test'}, status=403)
+        if test.status != 'planned':
+            return Response({'error': f'Cannot start a test in status {test.status}'}, status=400)
         test.status = 'in_progress'
         test.actual_start = timezone.now()
         test.save()
+        log_action(request.user, 'update', test, changes={'status': ['planned', 'in_progress']}, request=request)
         return Response(BCMTestSerializer(test).data)
-    
+
     @action(detail=True, methods=['post'])
     def complete(self, request, pk=None):
         from django.utils import timezone
+        from core.audit import log_action
         test = self.get_object()
+        if not self._can_run(test, request.user):
+            return Response({'error': 'Only the test coordinator or a manager can complete a test'}, status=403)
+        if test.status not in ('planned', 'in_progress'):
+            return Response({'error': f'Cannot complete a test in status {test.status}'}, status=400)
+        previous = test.status
         test.status = 'completed'
         test.actual_end = timezone.now()
-        test.overall_result = request.data.get('result', '')
-        test.results_summary = request.data.get('summary', '')
+        if not test.actual_start:
+            test.actual_start = test.actual_end
+        test.overall_result = request.data.get('result', test.overall_result)
+        test.results_summary = request.data.get('summary', test.results_summary)
         test.save()
+        # Keep the tested plans' "last tested" dates in sync.
+        today = test.actual_end.date()
+        if test.bc_plan_id:
+            type(test.bc_plan).objects.filter(pk=test.bc_plan_id).update(last_tested_date=today)
+        if test.dr_plan_id:
+            type(test.dr_plan).objects.filter(pk=test.dr_plan_id).update(last_tested_date=today)
+        log_action(request.user, 'update', test,
+                   changes={'status': [previous, 'completed'], 'overall_result': test.overall_result}, request=request)
         return Response(BCMTestSerializer(test).data)
 
 
-class BCMTestFindingViewSet(viewsets.ModelViewSet):
+class BCMTestFindingViewSet(AuditedModelViewSet):
     queryset = BCMTestFinding.objects.select_related('test', 'assigned_to').all()
     serializer_class = BCMTestFindingSerializer
     filter_backends = [DjangoFilterBackend, OrderingFilter]

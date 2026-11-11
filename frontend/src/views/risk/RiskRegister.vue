@@ -310,19 +310,19 @@ const impactOptions = [
     { label: '5 - Catastrophic (كارثي)', value: 5 }
 ]
 
+// Level thresholds come from the backend (single source of truth, configurable per organization).
+const thresholds = ref({ medium: 6, high: 12, critical: 20 })
+
 const getRiskLevel = (score) => {
-    if (score >= 20) return 'critical'
-    if (score >= 12) return 'high'
-    if (score >= 6) return 'medium'
+    const t = thresholds.value
+    if (score >= t.critical) return 'critical'
+    if (score >= t.high) return 'high'
+    if (score >= t.medium) return 'medium'
     return 'low'
 }
 
-const getRiskLevelLabel = (score) => {
-    if (score >= 20) return 'Critical - حرج'
-    if (score >= 12) return 'High - عالي'
-    if (score >= 6) return 'Medium - متوسط'
-    return 'Low - منخفض'
-}
+const levelLabels = { critical: 'Critical - حرج', high: 'High - عالي', medium: 'Medium - متوسط', low: 'Low - منخفض' }
+const getRiskLevelLabel = (score) => levelLabels[getRiskLevel(score)]
 
 const getStatusSeverity = (status) => {
     const map = {
@@ -380,6 +380,7 @@ const loadRisks = async () => {
         ])
         risks.value = risksRes.data.results || risksRes.data
         stats.value = statsRes.data?.by_level || {}
+        if (statsRes.data?.thresholds) thresholds.value = statsRes.data.thresholds
     } catch (error) {
         console.error('Failed to load risks:', error)
     } finally {

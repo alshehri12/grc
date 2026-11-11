@@ -2,6 +2,7 @@
 Compliance app views.
 """
 from rest_framework import viewsets, status
+from core.audit import AuditedModelViewSet
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
@@ -22,7 +23,7 @@ from .serializers import (
 )
 
 
-class ControlFrameworkViewSet(viewsets.ModelViewSet):
+class ControlFrameworkViewSet(AuditedModelViewSet):
     queryset = ControlFramework.objects.prefetch_related('domains').all()
     serializer_class = ControlFrameworkSerializer
     filter_backends = [DjangoFilterBackend, SearchFilter]
@@ -30,7 +31,7 @@ class ControlFrameworkViewSet(viewsets.ModelViewSet):
     search_fields = ['name', 'name_ar', 'code']
 
 
-class ControlDomainViewSet(viewsets.ModelViewSet):
+class ControlDomainViewSet(AuditedModelViewSet):
     queryset = ControlDomain.objects.select_related('framework', 'parent').all()
     serializer_class = ControlDomainSerializer
     filter_backends = [DjangoFilterBackend, SearchFilter]
@@ -38,7 +39,7 @@ class ControlDomainViewSet(viewsets.ModelViewSet):
     search_fields = ['name', 'name_ar', 'code']
 
 
-class ControlViewSet(viewsets.ModelViewSet):
+class ControlViewSet(AuditedModelViewSet):
     queryset = Control.objects.select_related('domain', 'domain__framework').all()
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ['domain', 'domain__framework', 'control_type']
@@ -49,51 +50,6 @@ class ControlViewSet(viewsets.ModelViewSet):
         if self.action == 'list':
             return ControlListSerializer
         return ControlSerializer
-    
-    def create(self, request, *args, **kwargs):
-        # #region agent log
-        import json
-        from django.utils import timezone
-        log_entry = {
-            "location": "ControlViewSet.create:entry",
-            "message": "Create control request received",
-            "data": {"request_data": request.data},
-            "timestamp": timezone.now().timestamp() * 1000,
-            "sessionId": "debug-session",
-            "hypothesisId": "CONTROL"
-        }
-        with open('c:\\Users\\aalshehre\\GRC\\grc_system\\grc\\.cursor\\debug.log', 'a') as f:
-            f.write(json.dumps(log_entry) + '\n')
-        # #endregion
-        serializer = self.get_serializer(data=request.data)
-        if not serializer.is_valid():
-            # #region agent log
-            log_entry = {
-                "location": "ControlViewSet.create:validation_error",
-                "message": "Serializer validation failed",
-                "data": {"errors": serializer.errors, "data": serializer.initial_data},
-                "timestamp": timezone.now().timestamp() * 1000,
-                "sessionId": "debug-session",
-                "hypothesisId": "CONTROL"
-            }
-            with open('c:\\Users\\aalshehre\\GRC\\grc_system\\grc\\.cursor\\debug.log', 'a') as f:
-                f.write(json.dumps(log_entry) + '\n')
-            # #endregion
-            return Response(serializer.errors, status=400)
-        control = serializer.save()
-        # #region agent log
-        log_entry = {
-            "location": "ControlViewSet.create:success",
-            "message": "Control created successfully",
-            "data": {"id": control.id},
-            "timestamp": timezone.now().timestamp() * 1000,
-            "sessionId": "debug-session",
-            "hypothesisId": "CONTROL"
-        }
-        with open('c:\\Users\\aalshehre\\GRC\\grc_system\\grc\\.cursor\\debug.log', 'a') as f:
-            f.write(json.dumps(log_entry) + '\n')
-        # #endregion
-        return Response(self.get_serializer(control).data, status=201)
     
     @action(detail=False, methods=['get'])
     def by_framework(self, request):
@@ -119,7 +75,7 @@ class ControlViewSet(viewsets.ModelViewSet):
         return Response(result)
 
 
-class ControlImplementationViewSet(viewsets.ModelViewSet):
+class ControlImplementationViewSet(AuditedModelViewSet):
     queryset = ControlImplementation.objects.select_related(
         'organization', 'control', 'control__domain', 'owner', 'department'
     ).all()
@@ -149,7 +105,7 @@ class ControlImplementationViewSet(viewsets.ModelViewSet):
         return Response(stats)
 
 
-class AuditViewSet(viewsets.ModelViewSet):
+class AuditViewSet(AuditedModelViewSet):
     queryset = Audit.objects.select_related(
         'organization', 'lead_auditor', 'created_by'
     ).prefetch_related('frameworks', 'departments', 'auditors').all()
@@ -163,71 +119,46 @@ class AuditViewSet(viewsets.ModelViewSet):
             return AuditListSerializer
         return AuditSerializer
     
-    def create(self, request, *args, **kwargs):
-        # #region agent log
-        import json
-        from django.utils import timezone
-        log_entry = {
-            "location": "AuditViewSet.create:entry",
-            "message": "Create audit request received",
-            "data": {"request_data": request.data},
-            "timestamp": timezone.now().timestamp() * 1000,
-            "sessionId": "debug-session",
-            "hypothesisId": "AUDIT"
-        }
-        with open('c:\\Users\\aalshehre\\GRC\\grc_system\\grc\\.cursor\\debug.log', 'a') as f:
-            f.write(json.dumps(log_entry) + '\n')
-        # #endregion
-        serializer = self.get_serializer(data=request.data)
-        if not serializer.is_valid():
-            # #region agent log
-            log_entry = {
-                "location": "AuditViewSet.create:validation_error",
-                "message": "Serializer validation failed",
-                "data": {"errors": serializer.errors, "data": serializer.initial_data},
-                "timestamp": timezone.now().timestamp() * 1000,
-                "sessionId": "debug-session",
-                "hypothesisId": "AUDIT"
-            }
-            with open('c:\\Users\\aalshehre\\GRC\\grc_system\\grc\\.cursor\\debug.log', 'a') as f:
-                f.write(json.dumps(log_entry) + '\n')
-            # #endregion
-            return Response(serializer.errors, status=400)
-        audit = serializer.save()
-        # #region agent log
-        log_entry = {
-            "location": "AuditViewSet.create:success",
-            "message": "Audit created successfully",
-            "data": {"id": audit.id},
-            "timestamp": timezone.now().timestamp() * 1000,
-            "sessionId": "debug-session",
-            "hypothesisId": "AUDIT"
-        }
-        with open('c:\\Users\\aalshehre\\GRC\\grc_system\\grc\\.cursor\\debug.log', 'a') as f:
-            f.write(json.dumps(log_entry) + '\n')
-        # #endregion
-        return Response(self.get_serializer(audit).data, status=201)
-    
+    def _can_run(self, audit, user):
+        from core.permissions import user_can_approve
+        return (user_can_approve(user) or user.pk == audit.lead_auditor_id
+                or audit.auditors.filter(pk=user.pk).exists())
+
     @action(detail=True, methods=['post'])
     def start(self, request, pk=None):
         from django.utils import timezone
+        from core.audit import log_action
         audit = self.get_object()
+        if not self._can_run(audit, request.user):
+            return Response({'error': 'Only the audit team or a manager can start an audit'}, status=403)
+        if audit.status not in ('planned',):
+            return Response({'error': f'Cannot start an audit in status {audit.status}'}, status=400)
         audit.status = 'in_progress'
         audit.actual_start_date = timezone.now().date()
         audit.save()
+        log_action(request.user, 'update', audit, changes={'status': ['planned', 'in_progress']}, request=request)
         return Response(AuditSerializer(audit).data)
-    
+
     @action(detail=True, methods=['post'])
     def complete(self, request, pk=None):
         from django.utils import timezone
+        from core.audit import log_action
         audit = self.get_object()
+        if not self._can_run(audit, request.user):
+            return Response({'error': 'Only the audit team or a manager can complete an audit'}, status=403)
+        if audit.status not in ('in_progress', 'fieldwork', 'reporting'):
+            return Response({'error': f'Cannot complete an audit in status {audit.status}'}, status=400)
+        previous = audit.status
         audit.status = 'completed'
         audit.actual_end_date = timezone.now().date()
+        if not audit.report_date:
+            audit.report_date = audit.actual_end_date
         audit.save()
+        log_action(request.user, 'update', audit, changes={'status': [previous, 'completed']}, request=request)
         return Response(AuditSerializer(audit).data)
 
 
-class AuditFindingViewSet(viewsets.ModelViewSet):
+class AuditFindingViewSet(AuditedModelViewSet):
     queryset = AuditFinding.objects.select_related(
         'audit', 'control', 'assigned_to', 'department', 'closed_by'
     ).all()
@@ -252,7 +183,7 @@ class AuditFindingViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
 
-class CorrectiveActionViewSet(viewsets.ModelViewSet):
+class CorrectiveActionViewSet(AuditedModelViewSet):
     queryset = CorrectiveAction.objects.select_related(
         'organization', 'finding', 'owner', 'verified_by', 'created_by'
     ).all()
@@ -263,17 +194,32 @@ class CorrectiveActionViewSet(viewsets.ModelViewSet):
     
     @action(detail=True, methods=['post'])
     def verify(self, request, pk=None):
+        """Independent verification: the owner who implemented the action may not verify it."""
         from django.utils import timezone
+        from core.audit import log_action
+        from core.permissions import user_can_approve
         car = self.get_object()
+        is_auditor = car.finding.audit.auditors.filter(pk=request.user.pk).exists() or \
+            car.finding.audit.lead_auditor_id == request.user.pk
+        if not (user_can_approve(request.user) or is_auditor):
+            return Response({'error': 'Only auditors or managers can verify corrective actions'}, status=403)
+        if request.user.pk in (car.owner_id, car.created_by_id):
+            return Response({'error': 'A corrective action cannot be verified by its own owner'}, status=403)
+        if car.status not in ('pending_verification', 'in_progress', 'open', 'overdue'):
+            return Response({'error': f'Cannot verify an action in status {car.status}'}, status=400)
+        previous = car.status
         car.status = 'verified'
         car.verified_by = request.user
         car.verified_date = timezone.now().date()
         car.verification_notes = request.data.get('notes', '')
+        if not car.completed_date:
+            car.completed_date = car.verified_date
         car.save()
+        log_action(request.user, 'approve', car, changes={'status': [previous, 'verified']}, request=request)
         return Response(CorrectiveActionSerializer(car).data)
 
 
-class EvidenceViewSet(viewsets.ModelViewSet):
+class EvidenceViewSet(AuditedModelViewSet):
     queryset = Evidence.objects.select_related(
         'organization', 'control_implementation', 'control_implementation__control',
         'submitted_by', 'reviewed_by'
@@ -308,7 +254,7 @@ class EvidenceViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
 
-class GapAssessmentViewSet(viewsets.ModelViewSet):
+class GapAssessmentViewSet(AuditedModelViewSet):
     queryset = GapAssessment.objects.select_related(
         'organization', 'framework', 'assessor', 'approved_by'
     ).all()

@@ -1,44 +1,36 @@
 """
-Risk Management Utilities - Core GRC logic for risk calculations.
+Risk Management Utilities - core GRC logic for risk calculations.
 
-As a Risk Management Specialist, these are the key calculations:
-1. Risk Score = Likelihood × Impact (1-25 scale)
-2. Residual Risk = Inherent Risk × (1 - Control Effectiveness)
-3. Risk Level based on 5x5 matrix
+1. Risk Score = Likelihood x Impact (5x5 matrix, 1-25)
+2. Risk Level from a SINGLE configurable threshold table (see get_risk_thresholds)
+3. Residual Risk = Inherent Risk adjusted by control effectiveness
 4. Risk Appetite comparison
+
+The level thresholds are the one source of truth for the model, the API
+statistics, the dashboard and the frontend. They can be overridden per
+organization through core.Setting key `risk_matrix_thresholds` holding JSON
+such as {"medium": 6, "high": 12, "critical": 20} (score >= value).
 """
+import json
+
 from django.core.exceptions import ValidationError
 
+THRESHOLD_SETTING_KEY = 'risk_matrix_thresholds'
 
-# Risk Matrix Configuration (5x5)
-RISK_MATRIX = {
-    # (likelihood, impact): (score, level, color)
-    (1, 1): (1, 'low', '#4CAF50'),
-    (1, 2): (2, 'low', '#4CAF50'),
-    (1, 3): (3, 'low', '#8BC34A'),
-    (1, 4): (4, 'medium', '#FFEB3B'),
-    (1, 5): (5, 'medium', '#FFEB3B'),
-    (2, 1): (2, 'low', '#4CAF50'),
-    (2, 2): (4, 'low', '#8BC34A'),
-    (2, 3): (6, 'medium', '#FFEB3B'),
-    (2, 4): (8, 'medium', '#FFC107'),
-    (2, 5): (10, 'high', '#FF9800'),
-    (3, 1): (3, 'low', '#8BC34A'),
-    (3, 2): (6, 'medium', '#FFEB3B'),
-    (3, 3): (9, 'medium', '#FFC107'),
-    (3, 4): (12, 'high', '#FF9800'),
-    (3, 5): (15, 'high', '#FF5722'),
-    (4, 1): (4, 'medium', '#FFEB3B'),
-    (4, 2): (8, 'medium', '#FFC107'),
-    (4, 3): (12, 'high', '#FF9800'),
-    (4, 4): (16, 'critical', '#F44336'),
-    (4, 5): (20, 'critical', '#D32F2F'),
-    (5, 1): (5, 'medium', '#FFEB3B'),
-    (5, 2): (10, 'high', '#FF9800'),
-    (5, 3): (15, 'high', '#FF5722'),
-    (5, 4): (20, 'critical', '#D32F2F'),
-    (5, 5): (25, 'critical', '#B71C1C'),
+# Default thresholds (score >= value). low is everything below `medium`.
+DEFAULT_THRESHOLDS = {'medium': 6, 'high': 12, 'critical': 20}
+
+LEVEL_META = {
+    'low':      {'color': '#4CAF50', 'label': 'Low', 'label_ar': 'منخفض',
+                 'action': 'Monitor and review periodically'},
+    'medium':   {'color': '#FFC107', 'label': 'Medium', 'label_ar': 'متوسط',
+                 'action': 'Implement controls within 6 months'},
+    'high':     {'color': '#FF5722', 'label': 'High', 'label_ar': 'عالي',
+                 'action': 'Immediate action required within 3 months'},
+    'critical': {'color': '#F44336', 'label': 'Critical', 'label_ar': 'حرج',
+                 'action': 'Escalate to senior management immediately'},
 }
+LEVEL_ORDER = ['low', 'medium', 'high', 'critical']
 
 # Likelihood Labels (ISO 31000 aligned)
 LIKELIHOOD_LABELS = {
@@ -58,13 +50,62 @@ IMPACT_LABELS = {
     5: {'en': 'Catastrophic', 'ar': 'كارثي', 'financial': '> 10M SAR', 'operational': '> 7 days'},
 }
 
-# Risk Level Thresholds
-RISK_LEVELS = {
-    'low': {'min': 1, 'max': 4, 'color': '#4CAF50', 'action': 'Monitor and review periodically'},
-    'medium': {'min': 5, 'max': 9, 'color': '#FFC107', 'action': 'Implement controls within 6 months'},
-    'high': {'min': 10, 'max': 15, 'color': '#FF5722', 'action': 'Immediate action required within 3 months'},
-    'critical': {'min': 16, 'max': 25, 'color': '#F44336', 'action': 'Escalate to senior management immediately'},
-}
+_threshold_cache = {}
+
+
+def clear_threshold_cache():
+    _threshold_cache.clear()
+
+
+def _org_id(organization):
+    if organization is None:
+        return None
+    return getattr(organization, 'pk', organization)
+
+
+def get_risk_thresholds(organization=None):
+    """
+    Return {'medium': n, 'high': n, 'critical': n} for the organization
+    (falls back to the system-wide setting, then to DEFAULT_THRESHOLDS).
+    """
+    org_id = _org_id(organization)
+    if org_id in _threshold_cache:
+        return _threshold_cache[org_id]
+
+    thresholds = dict(DEFAULT_THRESHOLDS)
+    try:
+        from core.models import Setting
+        candidates = Setting.objects.filter(key=THRESHOLD_SETTING_KEY)
+        setting = None
+        if org_id is not None:
+            setting = candidates.filter(organization_id=org_id).first()
+        if setting is None:
+            setting = candidates.filter(organization__isnull=True).first()
+        if setting:
+            data = json.loads(setting.value) if isinstance(setting.value, str) else setting.value
+            parsed = {k: int(data[k]) for k in ('medium', 'high', 'critical') if k in data}
+            if len(parsed) == 3 and 1 < parsed['medium'] < parsed['high'] < parsed['critical'] <= 25:
+                thresholds = parsed
+    except Exception:
+        pass  # DB not ready or malformed setting: use defaults
+
+    _threshold_cache[org_id] = thresholds
+    return thresholds
+
+
+def get_risk_levels(organization=None):
+    """
+    Full level table for the organization:
+    {'low': {'min': 1, 'max': 5, 'color': ..., 'label': ..., 'action': ...}, ...}
+    """
+    t = get_risk_thresholds(organization)
+    bounds = {
+        'low': (1, t['medium'] - 1),
+        'medium': (t['medium'], t['high'] - 1),
+        'high': (t['high'], t['critical'] - 1),
+        'critical': (t['critical'], 25),
+    }
+    return {level: {'min': lo, 'max': hi, **LEVEL_META[level]} for level, (lo, hi) in bounds.items()}
 
 
 def validate_risk_score(value, field_name='score'):
@@ -74,44 +115,42 @@ def validate_risk_score(value, field_name='score'):
 
 
 def calculate_risk_score(likelihood, impact):
-    """
-    Calculate risk score from likelihood and impact.
-    
-    Args:
-        likelihood: 1-5 scale
-        impact: 1-5 scale
-    
-    Returns:
-        int: Risk score (1-25)
-    """
+    """Risk score = likelihood x impact (1-25), or None when either is missing."""
     if likelihood is None or impact is None:
         return None
     return likelihood * impact
 
 
-def get_risk_level(score):
-    """
-    Get risk level from score.
-    
-    Args:
-        score: Risk score (1-25)
-    
-    Returns:
-        str: Risk level (low, medium, high, critical)
-    """
+def get_risk_level(score, organization=None):
+    """Map a score (1-25) to low/medium/high/critical using the organization's thresholds."""
     if score is None:
         return None
-    
-    for level, config in RISK_LEVELS.items():
-        if config['min'] <= score <= config['max']:
-            return level
-    return 'critical' if score > 25 else 'low'
+    t = get_risk_thresholds(organization)
+    if score >= t['critical']:
+        return 'critical'
+    if score >= t['high']:
+        return 'high'
+    if score >= t['medium']:
+        return 'medium'
+    return 'low'
 
 
-def get_risk_color(score):
-    """Get color code for risk score visualization."""
-    level = get_risk_level(score)
-    return RISK_LEVELS.get(level, {}).get('color', '#9E9E9E')
+def get_risk_color(score, organization=None):
+    """Color code for a risk score."""
+    level = get_risk_level(score, organization)
+    return LEVEL_META.get(level, {}).get('color', '#9E9E9E')
+
+
+def build_matrix_cells(organization=None):
+    """5x5 grid of {likelihood, impact, score, level, color} for heat-map rendering."""
+    return [
+        [
+            {'likelihood': l, 'impact': i, 'score': l * i,
+             'level': get_risk_level(l * i, organization), 'color': get_risk_color(l * i, organization)}
+            for i in range(1, 6)
+        ]
+        for l in range(1, 6)
+    ]
 
 
 def calculate_residual_risk(inherent_likelihood, inherent_impact, control_effectiveness_pct):
