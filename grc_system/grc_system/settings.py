@@ -199,6 +199,38 @@ CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE
 CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
 
+# Periodic automation (see core/automation.py). DatabaseScheduler imports this
+# schedule on start-up. Without Celery: `python manage.py run_automation` from cron.
+from celery.schedules import crontab  # noqa: E402
+
+CELERY_BEAT_SCHEDULE = {
+    'deliver-notifications':      {'task': 'grc.automation.deliver_notifications',      'schedule': crontab(minute='*/5')},
+    'escalate-overdue-approvals': {'task': 'grc.automation.escalate_overdue_approvals', 'schedule': crontab(minute=0)},
+    'process-escalations':        {'task': 'grc.automation.process_escalations',        'schedule': crontab(minute=10)},
+    'mark-overdue-items':         {'task': 'grc.automation.mark_overdue_items',         'schedule': crontab(minute=20)},
+    'remind-upcoming-approvals':  {'task': 'grc.automation.remind_upcoming_approvals',  'schedule': crontab(hour=7, minute=0)},
+    'send-review-reminders':      {'task': 'grc.automation.send_review_reminders',      'schedule': crontab(hour=7, minute=15)},
+    'expire-evidence':            {'task': 'grc.automation.expire_evidence',            'schedule': crontab(hour=6, minute=0)},
+    'expire-risk-acceptances':    {'task': 'grc.automation.expire_risk_acceptances',    'schedule': crontab(hour=6, minute=15)},
+    'recalculate-residual-risks': {'task': 'grc.automation.recalculate_residual_risks', 'schedule': crontab(hour=2, minute=0)},
+    'refresh-gap-assessments':    {'task': 'grc.automation.refresh_gap_assessments',    'schedule': crontab(hour=3, minute=0)},
+    'snapshot-kpis':              {'task': 'grc.automation.snapshot_kpis',              'schedule': crontab(hour=4, minute=0)},
+}
+
+# Thresholds used by the automation jobs (days). Override via environment if needed.
+GRC_AUTOMATION = {
+    'REVIEW_WARNING_DAYS': int(os.environ.get('GRC_REVIEW_WARNING_DAYS', 30)),
+    'RISK_REVIEW_WARNING_DAYS': int(os.environ.get('GRC_RISK_REVIEW_WARNING_DAYS', 14)),
+    'EVIDENCE_WARNING_DAYS': int(os.environ.get('GRC_EVIDENCE_WARNING_DAYS', 30)),
+    'ACCEPTANCE_WARNING_DAYS': int(os.environ.get('GRC_ACCEPTANCE_WARNING_DAYS', 30)),
+    'PLAN_TEST_INTERVAL_DAYS': int(os.environ.get('GRC_PLAN_TEST_INTERVAL_DAYS', 365)),
+    'BIA_REVIEW_INTERVAL_DAYS': int(os.environ.get('GRC_BIA_REVIEW_INTERVAL_DAYS', 365)),
+    'UPCOMING_EVENT_DAYS': int(os.environ.get('GRC_UPCOMING_EVENT_DAYS', 7)),
+    'REMINDER_DEDUPE_DAYS': int(os.environ.get('GRC_REMINDER_DEDUPE_DAYS', 7)),
+    'EMAIL_ENABLED': os.environ.get('GRC_EMAIL_ENABLED', 'True').lower() == 'true',
+}
+FRONTEND_URL = os.environ.get('FRONTEND_URL', 'http://localhost:5173')
+
 # Email configuration
 EMAIL_BACKEND = os.environ.get('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
 EMAIL_HOST = os.environ.get('EMAIL_HOST', 'smtp.gmail.com')

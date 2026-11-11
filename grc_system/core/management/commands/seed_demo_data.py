@@ -671,6 +671,9 @@ class Command(BaseCommand):
                 inherent_likelihood=inh[0], inherent_impact=inh[1],
                 residual_likelihood=res[0] if status != 'identified' else None,
                 residual_impact=res[1] if status != 'identified' else None,
+                # Risks with linked controls get their residual from control effectiveness
+                # (recalculated by automation); the rest carry a manual residual assessment.
+                residual_auto=bool(ctrls),
                 target_likelihood=tgt[0], target_impact=tgt[1],
                 identified_date=self.d(-self.rng.randint(30, 360)),
                 review_date=self.d(self.rng.randint(-20, 120)), created_by=self.u(owner),
@@ -1206,23 +1209,29 @@ class Command(BaseCommand):
     # DASHBOARD KPIs
     # ------------------------------------------------------------------ #
     def seed_dashboard(self):
+        # metric = key in core.automation.KPI_METRICS; the snapshot_kpis job computes the current month.
         kpis = [
-            ('DEMO-COMP-SCORE', 'Overall Compliance Score', 'نسبة الامتثال الإجمالية', '%', 'up_good', 90, 75, 60, [61, 64, 67, 70, 72, 74]),
-            ('DEMO-HIGH-RISKS', 'Open High/Critical Risks', 'المخاطر العالية والحرجة المفتوحة', 'count', 'down_good', 3, 6, 10, [11, 10, 9, 8, 8, 7]),
-            ('DEMO-OVERDUE-CAR', 'Overdue Corrective Actions', 'الإجراءات التصحيحية المتأخرة', 'count', 'down_good', 0, 3, 6, [5, 4, 4, 3, 2, 1]),
-            ('DEMO-POL-REVIEW', 'Policies Reviewed On Time', 'السياسات المراجعة في موعدها', '%', 'up_good', 95, 85, 70, [78, 80, 83, 85, 88, 89]),
-            ('DEMO-BCP-TESTED', 'Critical Functions with Tested Plans', 'الوظائف الحرجة ذات الخطط المختبرة', '%', 'up_good', 100, 80, 60, [50, 55, 60, 70, 75, 80]),
-            ('DEMO-PHISH-CLICK', 'Phishing Simulation Click Rate', 'نسبة النقر في محاكاة التصيد', '%', 'down_good', 5, 10, 20, [18, 15, 12, 11, 9, 7]),
+            ('DEMO-COMP-SCORE', 'Overall Compliance Score', 'نسبة الامتثال الإجمالية', '%', 'up_good', 90, 75, 60, 'compliance_score', [61, 64, 67, 70, 72]),
+            ('DEMO-HIGH-RISKS', 'Open High/Critical Risks', 'المخاطر العالية والحرجة المفتوحة', 'count', 'down_good', 3, 6, 10, 'open_high_risks', [14, 13, 13, 12, 12]),
+            ('DEMO-OVERDUE-CAR', 'Overdue Corrective Actions', 'الإجراءات التصحيحية المتأخرة', 'count', 'down_good', 0, 3, 6, 'overdue_corrective_actions', [5, 4, 4, 3, 2]),
+            ('DEMO-POL-REVIEW', 'Policies Reviewed On Time', 'السياسات المراجعة في موعدها', '%', 'up_good', 95, 85, 70, 'policies_reviewed_on_time_pct', [78, 80, 83, 85, 88]),
+            ('DEMO-BCP-TESTED', 'Critical Functions with Tested Plans', 'الوظائف الحرجة ذات الخطط المختبرة', '%', 'up_good', 100, 80, 60, 'critical_functions_tested_pct', [50, 55, 60, 70, 75]),
+            ('DEMO-PHISH-CLICK', 'Phishing Simulation Click Rate', 'نسبة النقر في محاكاة التصيد', '%', 'down_good', 5, 10, 20, None, [18, 15, 12, 11, 9, 7]),
         ]
-        for code, name, name_ar, unit, trend, target, warn, crit, series in kpis:
+        for code, name, name_ar, unit, trend, target, warn, crit, metric, series in kpis:
             kpi = KPI.objects.create(
                 code=code, name=name, name_ar=name_ar, unit=unit, trend_direction=trend,
                 target_value=Decimal(target), warning_threshold=Decimal(warn), critical_threshold=Decimal(crit),
-                description=f'Monthly tracked KPI: {name}.',
+                description=f'Monthly tracked KPI: {name}.' + (' Calculated automatically.' if metric else ' Entered manually.'),
+                calculation_config={'metric': metric} if metric else {},
             )
+            # Historical months are seeded; the current month comes from the snapshot_kpis job.
+            first_of_month = self.today.replace(day=1)
             for i, v in enumerate(series):
-                KPIValue.objects.create(organization=self.org, kpi=kpi, value=Decimal(v),
-                                        period_date=(self.today.replace(day=1) - timedelta(days=30 * (len(series) - 1 - i))).replace(day=1))
+                months_back = len(series) - i
+                period = (first_of_month - timedelta(days=28 * months_back)).replace(day=1)
+                KPIValue.objects.update_or_create(organization=self.org, kpi=kpi, period_date=period,
+                                                  defaults={'value': Decimal(v)})
 
     # ------------------------------------------------------------------ #
     # LIVE WORKFLOWS: items created by Authors -> real pending approvals
@@ -1290,6 +1299,9 @@ class Command(BaseCommand):
 
     # ------------------------------------------------------------------ #
     def seed_tasks_and_notifications(self):
+        from django.core.management import call_command
+        call_command('loaddata', 'notification_templates', verbosity=0)
+
         tasks = [
             ('Collect Q4 access review evidence', 'جمع أدلة مراجعة الصلاحيات للربع الرابع', 'evidence', 'high', 'in_progress', 'lama.malki', 'majed.ghamdi', 7),
             ('Update BIA for Customer Contact Center', 'تحديث تحليل أثر الأعمال لمركز الاتصال', 'assessment', 'medium', 'pending', 'turki.juhani', 'faisal.shahrani', 14),

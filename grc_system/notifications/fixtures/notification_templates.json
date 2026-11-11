@@ -12,7 +12,9 @@
             "body": "You have been assigned a new task.\n\nTask: {task_title}\nType: {task_type}\nPriority: {priority}\nDue Date: {due_date}\n\nPlease review and complete the task before the deadline.",
             "subject_ar": "تم تعيين مهمة جديدة: {task_title}",
             "body_ar": "تم تعيين مهمة جديدة لك.\n\nالمهمة: {task_title}\nالنوع: {task_type}\nالأولوية: {priority}\nتاريخ الاستحقاق: {due_date}\n\nيرجى مراجعة وإكمال المهمة قبل الموعد المحدد.",
-            "is_active": true
+            "is_active": true,
+            "created_at": "2026-01-01T00:00:00Z",
+            "updated_at": "2026-01-01T00:00:00Z"
         }
     },
     {
@@ -28,7 +30,9 @@
             "body": "This is a reminder that your task is due tomorrow.\n\nTask: {task_title}\nDue Date: {due_date}\n\nPlease complete the task before the deadline.",
             "subject_ar": "تذكير: موعد المهمة غداً - {task_title}",
             "body_ar": "هذا تذكير بأن موعد مهمتك غداً.\n\nالمهمة: {task_title}\nتاريخ الاستحقاق: {due_date}\n\nيرجى إكمال المهمة قبل الموعد المحدد.",
-            "is_active": true
+            "is_active": true,
+            "created_at": "2026-01-01T00:00:00Z",
+            "updated_at": "2026-01-01T00:00:00Z"
         }
     },
     {
@@ -44,7 +48,9 @@
             "body": "Your task is now overdue and requires immediate attention.\n\nTask: {task_title}\nOriginal Due Date: {due_date}\n\nPlease complete this task as soon as possible.",
             "subject_ar": "متأخر: المهمة تجاوزت الموعد المحدد - {task_title}",
             "body_ar": "مهمتك الآن متأخرة وتتطلب اهتمامًا فوريًا.\n\nالمهمة: {task_title}\nتاريخ الاستحقاق الأصلي: {due_date}\n\nيرجى إكمال هذه المهمة في أقرب وقت ممكن.",
-            "is_active": true
+            "is_active": true,
+            "created_at": "2026-01-01T00:00:00Z",
+            "updated_at": "2026-01-01T00:00:00Z"
         }
     },
     {
@@ -60,7 +66,9 @@
             "body": "You have a pending approval request.\n\nWorkflow: {workflow_name}\nItem: {item_title}\nStep: {step_name}\nDue Date: {due_date}\n\n{instructions}\n\nPlease review and take action.",
             "subject_ar": "مطلوب اعتماد: {item_title}",
             "body_ar": "لديك طلب اعتماد معلق.\n\nسير العمل: {workflow_name}\nالعنصر: {item_title}\nالخطوة: {step_name}\nتاريخ الاستحقاق: {due_date}\n\n{instructions}\n\nيرجى المراجعة واتخاذ الإجراء المناسب.",
-            "is_active": true
+            "is_active": true,
+            "created_at": "2026-01-01T00:00:00Z",
+            "updated_at": "2026-01-01T00:00:00Z"
         }
     },
     {
@@ -76,7 +84,9 @@
             "body": "Your request has been approved.\n\nItem: {item_title}\nApproved By: {approver_name}\nComments: {comments}",
             "subject_ar": "تم الاعتماد: {item_title}",
             "body_ar": "تم اعتماد طلبك.\n\nالعنصر: {item_title}\nتم الاعتماد بواسطة: {approver_name}\nالتعليقات: {comments}",
-            "is_active": true
+            "is_active": true,
+            "created_at": "2026-01-01T00:00:00Z",
+            "updated_at": "2026-01-01T00:00:00Z"
         }
     },
     {
@@ -92,7 +102,9 @@
             "body": "Your request has been rejected.\n\nItem: {item_title}\nRejected By: {rejector_name}\nReason: {comments}",
             "subject_ar": "تم الرفض: {item_title}",
             "body_ar": "تم رفض طلبك.\n\nالعنصر: {item_title}\nتم الرفض بواسطة: {rejector_name}\nالسبب: {comments}",
-            "is_active": true
+            "is_active": true,
+            "created_at": "2026-01-01T00:00:00Z",
+            "updated_at": "2026-01-01T00:00:00Z"
         }
     },
     {
@@ -108,7 +120,9 @@
             "body": "An item has been escalated to you due to SLA breach.\n\nItem: {item_title}\nReason: {reason}\nLevel: {level}\nOriginally assigned to: {original_assignee}\n\nPlease review and take appropriate action.",
             "subject_ar": "تصعيد: {item_title}",
             "body_ar": "تم تصعيد عنصر إليك بسبب تجاوز مستوى الخدمة المتفق عليه.\n\nالعنصر: {item_title}\nالسبب: {reason}\nالمستوى: {level}\nتم تعيينه أصلاً إلى: {original_assignee}\n\nيرجى المراجعة واتخاذ الإجراء المناسب.",
-            "is_active": true
+            "is_active": true,
+            "created_at": "2026-01-01T00:00:00Z",
+            "updated_at": "2026-01-01T00:00:00Z"
         }
     },
     {
@@ -124,7 +138,9 @@
             "body": "A policy is due for review.\n\nPolicy: {policy_title}\nPolicy ID: {policy_id}\nReview Date: {review_date}\n\nPlease review the policy and update if necessary.",
             "subject_ar": "موعد مراجعة السياسة: {policy_title}",
             "body_ar": "سياسة مستحقة للمراجعة.\n\nالسياسة: {policy_title}\nرقم السياسة: {policy_id}\nتاريخ المراجعة: {review_date}\n\nيرجى مراجعة السياسة وتحديثها إذا لزم الأمر.",
-            "is_active": true
+            "is_active": true,
+            "created_at": "2026-01-01T00:00:00Z",
+            "updated_at": "2026-01-01T00:00:00Z"
         }
     }
 ]

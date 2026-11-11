@@ -255,6 +255,9 @@ class Risk(models.Model):
     # Dates
     identified_date = models.DateField(_('Identified Date'), auto_now_add=True)
     review_date = models.DateField(_('Next Review Date'), null=True, blank=True)
+    # When True the residual scores are derived from linked control effectiveness and are
+    # recalculated automatically; a manual residual assessment switches this off.
+    residual_auto = models.BooleanField(_('Residual Calculated From Controls'), default=True)
     
     # Related controls
     controls = models.ManyToManyField(
@@ -348,24 +351,39 @@ class Risk(models.Model):
     
     def calculate_residual_from_controls(self):
         """
-        Auto-calculate residual risk based on linked control effectiveness.
-        Updates residual_likelihood and residual_impact.
+        Derive residual likelihood/impact from the linked controls' effectiveness.
+        Preventive controls reduce likelihood; detective/corrective controls reduce
+        impact (see risk.utils.aggregate_control_effect). Returns the breakdown.
         """
-        from risk.utils import calculate_control_effectiveness_from_linked_controls, calculate_residual_risk
-        
+        from risk.utils import aggregate_control_effect, calculate_residual_risk
+
         if not self.controls.exists():
-            # No controls - residual equals inherent
-            return
-        
-        effectiveness = calculate_control_effectiveness_from_linked_controls(self)
+            # No controls: residual equals inherent (nothing reduces the risk).
+            self.residual_likelihood = self.inherent_likelihood
+            self.residual_impact = self.inherent_impact
+            return {'likelihood_reduction': 0, 'impact_reduction': 0, 'controls': []}
+
+        effect = aggregate_control_effect(self)
         res_likelihood, res_impact, _ = calculate_residual_risk(
-            self.inherent_likelihood,
-            self.inherent_impact,
-            effectiveness
+            self.inherent_likelihood, self.inherent_impact,
+            effect['likelihood_reduction'], effect['impact_reduction'],
         )
-        
         self.residual_likelihood = res_likelihood
         self.residual_impact = res_impact
+        return effect
+
+    def apply_control_based_residual(self, save=True):
+        """
+        Recalculate and persist the control-derived residual (without touching
+        updated_at or firing post_save). Returns True when values changed.
+        """
+        before = (self.residual_likelihood, self.residual_impact)
+        self.calculate_residual_from_controls()
+        after = (self.residual_likelihood, self.residual_impact)
+        if save and after != before:
+            type(self).objects.filter(pk=self.pk).update(
+                residual_likelihood=self.residual_likelihood, residual_impact=self.residual_impact)
+        return after != before
     
     def get_treatment_recommendation(self):
         """Get recommended treatment option based on risk level."""

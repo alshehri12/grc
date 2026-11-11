@@ -6,7 +6,7 @@ django-filter==24.3
 djangorestframework-simplejwt==5.3.1
 
 # Database
-psycopg2-binary==2.9.9
+psycopg2-binary
 
 # Celery for task scheduling
 celery==5.4.0

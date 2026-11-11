@@ -153,75 +153,124 @@ def build_matrix_cells(organization=None):
     ]
 
 
-def calculate_residual_risk(inherent_likelihood, inherent_impact, control_effectiveness_pct):
+# --------------------------------------------------------------------------- #
+# Residual risk
+# --------------------------------------------------------------------------- #
+# How much of a control's effectiveness applies to likelihood vs. impact.
+# Preventive controls stop events (likelihood); corrective controls limit damage
+# (impact); detective controls mostly shorten the damage window; compensating
+# controls are split.
+CONTROL_TYPE_SPLIT = {
+    'preventive':   (1.0, 0.0),
+    'detective':    (0.3, 0.7),
+    'corrective':   (0.0, 1.0),
+    'compensating': (0.5, 0.5),
+}
+
+# How much of a control's rated effectiveness counts, by implementation status.
+IMPLEMENTATION_FACTOR = {
+    'implemented': 1.0,
+    'partially_implemented': 0.5,
+    'in_progress': 0.25,
+    'planned': 0.0,
+    'not_implemented': 0.0,
+    'not_applicable': 0.0,
+}
+
+# A dimension can never be reduced by more than this, however many controls exist.
+# Controls can make an event much less likely, but rarely shrink the damage of a
+# catastrophic event by more than ~60% (a 5 therefore never drops below 2).
+MAX_LIKELIHOOD_REDUCTION = 0.80
+MAX_IMPACT_REDUCTION = 0.60
+MAX_REDUCTION = MAX_LIKELIHOOD_REDUCTION  # backwards-compatible alias
+
+
+def control_effectiveness(implementation):
     """
-    Calculate residual risk after control application.
-    
-    Formula: Residual = Inherent × (1 - Control Effectiveness)
-    
-    Args:
-        inherent_likelihood: Inherent likelihood (1-5)
-        inherent_impact: Inherent impact (1-5)
-        control_effectiveness_pct: Control effectiveness percentage (0-100)
-    
-    Returns:
-        tuple: (residual_likelihood, residual_impact, residual_score)
+    Effectiveness of one implemented control as a 0..1 factor.
+    Uses the tested effectiveness rating (1-5) when present, otherwise a
+    conservative estimate from the maturity level (max 0.6), scaled by
+    implementation status. Missing implementation -> 0.
+    """
+    if implementation is None:
+        return 0.0
+    factor = IMPLEMENTATION_FACTOR.get(implementation.status, 0.0)
+    if factor == 0.0:
+        return 0.0
+    if implementation.effectiveness_rating:
+        base = min(5, max(1, implementation.effectiveness_rating)) / 5.0
+    else:
+        base = min(0.6, (implementation.maturity_level or 0) / 5.0)
+    return round(base * factor, 4)
+
+
+def aggregate_control_effect(risk):
+    """
+    Combine the risk's linked controls into likelihood and impact reductions.
+
+    Controls are treated as independent layers (1 - prod(1 - e_i)), so one
+    strong control does not mask several missing ones, and each dimension is
+    capped at MAX_REDUCTION.
+
+    Returns {'likelihood_reduction': 0..0.8, 'impact_reduction': 0..0.8, 'controls': [...]}
+    """
+    from compliance.models import ControlImplementation
+
+    controls = list(risk.controls.all())
+    if not controls:
+        return {'likelihood_reduction': 0.0, 'impact_reduction': 0.0, 'controls': []}
+
+    impls = {
+        ci.control_id: ci for ci in ControlImplementation.objects.filter(
+            organization=risk.organization, control__in=controls)
+    }
+    keep_l = keep_i = 1.0
+    details = []
+    for control in controls:
+        impl = impls.get(control.pk)
+        eff = control_effectiveness(impl)
+        share_l, share_i = CONTROL_TYPE_SPLIT.get(control.control_type, (0.5, 0.5))
+        keep_l *= (1 - eff * share_l)
+        keep_i *= (1 - eff * share_i)
+        details.append({
+            'control_id': control.control_id, 'title': control.title, 'control_type': control.control_type,
+            'implementation_status': impl.status if impl else 'missing',
+            'effectiveness': eff,
+        })
+    return {
+        'likelihood_reduction': round(min(MAX_LIKELIHOOD_REDUCTION, 1 - keep_l), 4),
+        'impact_reduction': round(min(MAX_IMPACT_REDUCTION, 1 - keep_i), 4),
+        'controls': details,
+    }
+
+
+def _round_half_up(x):
+    return int(x + 0.5)
+
+
+def calculate_residual_risk(inherent_likelihood, inherent_impact, likelihood_reduction, impact_reduction=None):
+    """
+    Residual scores after applying reductions (0..1) to each dimension.
+    Back-compat: a single percentage (0-100) as the third argument is treated
+    as an overall effectiveness applied to likelihood (and half to impact).
+
+    Returns (residual_likelihood, residual_impact, residual_score).
     """
     if inherent_likelihood is None or inherent_impact is None:
         return None, None, None
-    
-    # Control effectiveness reduces likelihood (controls prevent occurrence)
-    effectiveness_factor = 1 - (control_effectiveness_pct / 100)
-    
-    # Calculate residual values (round to nearest integer, minimum 1)
-    residual_likelihood = max(1, round(inherent_likelihood * effectiveness_factor))
-    
-    # Impact typically doesn't change much with controls (controls reduce occurrence, not impact)
-    # However, some controls can reduce impact through early detection/response
-    residual_impact = max(1, round(inherent_impact * (1 - (control_effectiveness_pct / 200))))  # Half effect on impact
-    
-    residual_score = residual_likelihood * residual_impact
-    
-    return residual_likelihood, residual_impact, residual_score
+    if impact_reduction is None:  # legacy call with a percentage
+        pct = float(likelihood_reduction) / 100.0
+        likelihood_reduction = min(MAX_LIKELIHOOD_REDUCTION, pct)
+        impact_reduction = min(MAX_IMPACT_REDUCTION, pct / 2)
+    res_l = max(1, min(inherent_likelihood, _round_half_up(inherent_likelihood * (1 - likelihood_reduction))))
+    res_i = max(1, min(inherent_impact, _round_half_up(inherent_impact * (1 - impact_reduction))))
+    return res_l, res_i, res_l * res_i
 
 
 def calculate_control_effectiveness_from_linked_controls(risk):
-    """
-    Calculate overall control effectiveness from linked controls.
-    
-    Args:
-        risk: Risk instance with related controls
-    
-    Returns:
-        int: Aggregate control effectiveness percentage (0-100)
-    """
-    from compliance.models import ControlImplementation
-    
-    if not risk.controls.exists():
-        return 0
-    
-    total_effectiveness = 0
-    control_count = 0
-    
-    for control in risk.controls.all():
-        # Get implementation for the risk's organization
-        impl = ControlImplementation.objects.filter(
-            organization=risk.organization,
-            control=control
-        ).first()
-        
-        if impl and impl.effectiveness_rating:
-            # Convert 1-5 effectiveness to percentage
-            # 5 = 100%, 4 = 80%, 3 = 60%, 2 = 40%, 1 = 20%
-            total_effectiveness += impl.effectiveness_rating * 20
-            control_count += 1
-    
-    if control_count == 0:
-        return 0
-    
-    # Average effectiveness, capped at 95% (no control is perfect)
-    avg_effectiveness = min(95, total_effectiveness / control_count)
-    return round(avg_effectiveness)
+    """Overall control effectiveness (0-100) - the larger of the two dimension reductions."""
+    effect = aggregate_control_effect(risk)
+    return round(max(effect['likelihood_reduction'], effect['impact_reduction']) * 100)
 
 
 def check_risk_appetite(risk, appetite_threshold):

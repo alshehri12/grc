@@ -155,6 +155,42 @@ grc/
 
 The platform fully supports **English** and **Arabic** languages with complete RTL (Right-to-Left) layout support. Users can switch between languages from the settings page.
 
+## Automation (reminders, escalations, expiries, KPIs)
+
+All recurring GRC housekeeping lives in `grc_system/core/automation.py`:
+review reminders (policies, risks, plans, BIAs, control tests), approval SLA
+escalation, overdue flags for tasks / findings / corrective actions, evidence
+and risk-acceptance expiry, control-derived residual-risk recalculation, gap
+assessment refresh, KPI snapshots and e-mail delivery of notifications.
+
+Run it **without Celery** (local development, demos, or a cron entry):
+
+```bash
+python manage.py run_automation            # run every job once
+python manage.py run_automation --list     # see the jobs
+python manage.py run_automation --job expire_evidence --job snapshot_kpis
+```
+
+Run it **with Celery** (production): the schedule is defined in
+`CELERY_BEAT_SCHEDULE` (settings.py) and picked up by django-celery-beat.
+
+```bash
+celery -A grc_system worker -l info
+celery -A grc_system beat -l info
+```
+
+E-mail uses Django's `EMAIL_BACKEND` (console output by default; set the
+`EMAIL_*` environment variables for SMTP). Users can opt out in their profile.
+Thresholds (warning windows, test intervals) are in `GRC_AUTOMATION` and can be
+overridden with `GRC_*` environment variables.
+
+### Demo data
+
+```bash
+python manage.py seed_demo_data            # realistic bilingual sample data
+python manage.py seed_demo_data --reset    # wipe and re-seed
+```
+
 ## API Documentation
 
 API endpoints follow RESTful conventions:

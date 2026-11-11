@@ -138,21 +138,38 @@ class RiskViewSet(AuditedModelViewSet):
         }
         return Response(stats)
     
+    RESIDUAL_FIELDS = ('residual_likelihood', 'residual_impact')
+
+    def perform_update(self, serializer):
+        # A manual residual assessment switches off automatic (control-derived) residual.
+        if any(f in self.request.data for f in self.RESIDUAL_FIELDS):
+            serializer.validated_data['residual_auto'] = False
+        return super().perform_update(serializer)
+
     @action(detail=True, methods=['post'])
     def calculate_residual(self, request, pk=None):
         """
-        Calculate residual risk based on linked control effectiveness.
+        (Re)derive residual risk from linked control effectiveness and switch the
+        risk back to automatic residual mode.
         POST /api/risk/risks/{id}/calculate_residual/
         """
+        from core.audit import log_action
         risk = self.get_object()
-        risk.calculate_residual_from_controls()
-        risk.save()
+        before = (risk.residual_likelihood, risk.residual_impact, risk.residual_auto)
+        effect = risk.calculate_residual_from_controls()
+        risk.residual_auto = True
+        risk.save(update_fields=['residual_likelihood', 'residual_impact', 'residual_auto', 'updated_at'])
+        log_action(request.user, 'update', risk, request=request, changes={
+            'residual': [list(before[:2]), [risk.residual_likelihood, risk.residual_impact]],
+            'residual_auto': [before[2], True]})
         return Response({
             'inherent_score': risk.inherent_risk_score,
             'residual_likelihood': risk.residual_likelihood,
             'residual_impact': risk.residual_impact,
             'residual_score': risk.residual_risk_score,
+            'residual_level': risk.residual_risk_level,
             'risk_reduction': risk.risk_reduction_percentage,
+            'control_effect': effect,
             'treatment_recommendation': risk.get_treatment_recommendation()
         })
     
