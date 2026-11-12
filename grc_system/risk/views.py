@@ -9,11 +9,15 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter, OrderingFilter
 from django.db.models import Count
 
-from .models import AssetCategory, Asset, RiskCategory, Risk, RiskAssessment, RiskTreatment, RiskAcceptance
+from .models import (
+    AssetCategory, Asset, RiskCategory, Risk, RiskAssessment, RiskTreatment, RiskAcceptance,
+    RiskAppetite, KeyRiskIndicator, KRIMeasurement,
+)
 from .serializers import (
     AssetCategorySerializer, AssetSerializer, AssetListSerializer,
     RiskCategorySerializer, RiskSerializer, RiskListSerializer,
-    RiskAssessmentSerializer, RiskTreatmentSerializer, RiskAcceptanceSerializer
+    RiskAssessmentSerializer, RiskTreatmentSerializer, RiskAcceptanceSerializer,
+    RiskAppetiteSerializer, KeyRiskIndicatorSerializer, KeyRiskIndicatorListSerializer, KRIMeasurementSerializer,
 )
 
 
@@ -135,6 +139,8 @@ class RiskViewSet(AuditedModelViewSet):
             'by_level': by_level,
             'residual_by_level': residual_by_level,
             'thresholds': get_risk_thresholds(org_id),
+            'outside_appetite': sum(1 for r in risks.exclude(status__in=['closed', 'pending_approval'])
+                                    if r.appetite_status['status'] != 'within'),
         }
         return Response(stats)
     
@@ -179,13 +185,11 @@ class RiskViewSet(AuditedModelViewSet):
         Get comprehensive risk analysis.
         GET /api/risk/risks/{id}/analysis/
         """
-        from risk.utils import get_risk_level, get_risk_color, check_risk_appetite
+        from risk.utils import get_risk_color
+        from risk.appetite import evaluate_appetite
         
         risk = self.get_object()
-        
-        # Get appetite threshold from settings (default 12 = medium-high boundary)
-        appetite_threshold = 12
-        appetite_result = check_risk_appetite(risk, appetite_threshold)
+        appetite_result = evaluate_appetite(risk)
         
         return Response({
             'risk_id': risk.risk_id,
@@ -310,3 +314,103 @@ class RiskAcceptanceViewSet(AuditedModelViewSet):
     @action(detail=True, methods=['post'])
     def reject(self, request, pk=None):
         return self._decide(request, 'rejected')
+
+
+class RiskAppetiteViewSet(AuditedModelViewSet):
+    """Board-approved appetite statements per category (managers/admins maintain them)."""
+    from core.permissions import IsManagerOrAdminOrReadOnly
+    queryset = RiskAppetite.objects.select_related('organization', 'category', 'approved_by').all()
+    serializer_class = RiskAppetiteSerializer
+    permission_classes = [IsManagerOrAdminOrReadOnly]
+    filter_backends = [DjangoFilterBackend, OrderingFilter]
+    filterset_fields = ['organization', 'category', 'is_active']
+    ordering = ['category__name']
+
+    @action(detail=False, methods=['get'])
+    def exposure(self, request):
+        """Every open risk compared with its applicable appetite, plus counts per status."""
+        from risk.appetite import STATUS_WITHIN, STATUS_TOLERANCE, STATUS_BREACH
+        org_id = request.query_params.get('organization')
+        risks = Risk.objects.exclude(status__in=['closed', 'pending_approval']).select_related('category', 'owner')
+        if org_id:
+            risks = risks.filter(organization_id=org_id)
+        rows, counts = [], {STATUS_WITHIN: 0, STATUS_TOLERANCE: 0, STATUS_BREACH: 0}
+        for r in risks:
+            a = r.appetite_status
+            counts[a['status']] += 1
+            if a['status'] != STATUS_WITHIN:
+                rows.append({'id': r.pk, 'risk_id': r.risk_id, 'title': r.title, 'category': r.category.name if r.category else None,
+                             'owner': r.owner.get_full_name() if r.owner else None, 'status': r.status, **a,
+                             'active_treatments': r.treatments.filter(status__in=['planned', 'in_progress']).count()})
+        rows.sort(key=lambda x: (-x['excess'], x['risk_id']))
+        return Response({'counts': counts, 'outside_appetite': rows})
+
+
+class KeyRiskIndicatorViewSet(AuditedModelViewSet):
+    queryset = KeyRiskIndicator.objects.select_related('organization', 'risk', 'category', 'owner').all()
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_fields = ['organization', 'risk', 'category', 'current_status', 'frequency', 'owner', 'is_active']
+    search_fields = ['kri_id', 'name', 'name_ar']
+    ordering_fields = ['kri_id', 'current_status', 'last_measured_at']
+    ordering = ['kri_id']
+
+    def get_serializer_class(self):
+        if self.action == 'list':
+            return KeyRiskIndicatorListSerializer
+        return KeyRiskIndicatorSerializer
+
+    @action(detail=True, methods=['post'])
+    def measure(self, request, pk=None):
+        """Record a measurement: {value, measured_at?, notes?}. Updates the KRI status and alerts on red."""
+        from django.utils import timezone
+        from core.audit import log_action
+        from core.automation import notify_once
+        kri = self.get_object()
+        serializer = KRIMeasurementSerializer(data={
+            'kri': kri.pk, 'value': request.data.get('value'),
+            'measured_at': request.data.get('measured_at') or timezone.localdate(),
+            'notes': request.data.get('notes', ''),
+        })
+        serializer.is_valid(raise_exception=True)
+        measurement = serializer.save(recorded_by=request.user)
+        kri.refresh_from_db()
+        log_action(request.user, 'create', measurement, changes={'value': str(measurement.value), 'status': measurement.status}, request=request)
+        if measurement.status == 'red':
+            recipients = {u.pk: u for u in (kri.owner, kri.risk.owner if kri.risk_id else None) if u}
+            for u in recipients.values():
+                notify_once(u, f'KRI RED: {kri.kri_id} {kri.name} = {measurement.value}{kri.unit}',
+                            f"Indicator '{kri.name}' breached its critical threshold ({kri.critical_threshold}{kri.unit}). "
+                            + (f"Linked risk: {kri.risk.risk_id} {kri.risk.title}. " if kri.risk_id else '')
+                            + "Review the risk and its treatment plan.", 'risk.keyriskindicator', kri.pk,
+                            priority='urgent', dedupe_days=1, template_event='risk_assessment')
+        return Response(KeyRiskIndicatorSerializer(kri).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=False, methods=['get'])
+    def dashboard(self, request):
+        """RAG counts and the list of red/amber/overdue indicators."""
+        org_id = request.query_params.get('organization')
+        qs = self.queryset.filter(is_active=True)
+        if org_id:
+            qs = qs.filter(organization_id=org_id)
+        counts = {'green': 0, 'amber': 0, 'red': 0, 'no_data': 0, 'measurement_overdue': 0}
+        attention = []
+        for k in qs:
+            counts[k.current_status] += 1
+            overdue = k.is_measurement_overdue
+            if overdue:
+                counts['measurement_overdue'] += 1
+            if k.current_status in ('red', 'amber') or overdue:
+                attention.append(KeyRiskIndicatorListSerializer(k).data)
+        return Response({'counts': counts, 'attention': attention})
+
+
+class KRIMeasurementViewSet(AuditedModelViewSet):
+    queryset = KRIMeasurement.objects.select_related('kri', 'recorded_by').all()
+    serializer_class = KRIMeasurementSerializer
+    filter_backends = [DjangoFilterBackend, OrderingFilter]
+    filterset_fields = ['kri', 'status']
+    ordering = ['-measured_at']
+
+    def perform_create(self, serializer):
+        serializer.validated_data['recorded_by'] = self.request.user
+        return super().perform_create(serializer)

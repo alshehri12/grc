@@ -76,12 +76,30 @@ class DashboardViewSet(AuditedModelViewSet):
         for likelihood, impact in risks.values_list('inherent_likelihood', 'inherent_impact'):
             by_level[get_risk_level(likelihood * impact, org_id)] += 1
 
+        open_risks = risks.exclude(status__in=['closed', 'pending_approval']).select_related('category')
+        appetite_counts = {'within': 0, 'tolerance': 0, 'breach': 0}
+        for r in open_risks:
+            appetite_counts[r.appetite_status['status']] += 1
+
+        from risk.models import KeyRiskIndicator
+        kris = KeyRiskIndicator.objects.filter(is_active=True)
+        if org_id:
+            kris = kris.filter(organization_id=org_id)
+        kri_counts = {'green': 0, 'amber': 0, 'red': 0, 'no_data': 0, 'measurement_overdue': 0}
+        for k in kris:
+            kri_counts[k.current_status] += 1
+            if k.is_measurement_overdue:
+                kri_counts['measurement_overdue'] += 1
+
         risk_summary = {
             'total': risks.count(),
             **by_level,
             'treating': risks.filter(status='treating').count(),
             'by_level': by_level,
             'thresholds': get_risk_thresholds(org_id),
+            'appetite': appetite_counts,
+            'outside_appetite': appetite_counts['tolerance'] + appetite_counts['breach'],
+            'kris': kri_counts,
         }
 
         # Compliance summary (rate is over applicable controls; partial counts half)
@@ -153,6 +171,16 @@ class DashboardViewSet(AuditedModelViewSet):
             functions = functions.filter(organization_id=org_id)
             bcm_tests = bcm_tests.filter(organization_id=org_id)
         
+        from django.conf import settings as dj_settings
+        from bcm.utils import capability_analysis, plan_test_status
+        capability = None
+        if org_id:
+            capability = capability_analysis(
+                org_id, functions.filter(status='active', criticality__in=['critical', 'essential']),
+                test_interval_days=dj_settings.GRC_AUTOMATION.get('PLAN_TEST_INTERVAL_DAYS', 365))['summary']
+        live_plans = list(bc_plans.filter(status__in=['approved', 'active'])) + list(dr_plans.filter(status__in=['approved', 'active']))
+        tests_overdue = sum(1 for p in live_plans if plan_test_status(p)['overdue'])
+
         bcm_summary = {
             'bc_plans': bc_plans.count(),
             'bc_plans_active': bc_plans.filter(status='active').count(),
@@ -162,6 +190,8 @@ class DashboardViewSet(AuditedModelViewSet):
             'critical_functions': functions.filter(criticality='critical').count(),
             'tests_completed': bcm_tests.filter(status='completed').count(),
             'tests_planned': bcm_tests.filter(status='planned').count(),
+            'plans_test_overdue': tests_overdue,
+            'capability': capability,
         }
         
         # Audits summary

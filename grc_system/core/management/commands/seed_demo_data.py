@@ -26,6 +26,7 @@ from governance.models import (
 )
 from risk.models import (
     AssetCategory, Asset, RiskCategory, Risk, RiskAssessment, RiskTreatment, RiskAcceptance,
+    RiskAppetite, KeyRiskIndicator, KRIMeasurement,
 )
 from bcm.models import (
     BusinessFunction, BusinessImpactAnalysis, BCPlan, DisasterRecoveryPlan,
@@ -173,6 +174,7 @@ class Command(BaseCommand):
                 self.seed_compliance_library()
                 self.seed_governance()
                 self.seed_risk()
+                self.seed_risk_appetite_and_kris()
                 self.seed_compliance_ops()
                 self.seed_bcm()
                 self.seed_frameworks_app()
@@ -762,6 +764,58 @@ class Command(BaseCommand):
         )
 
     # ------------------------------------------------------------------ #
+    # RISK APPETITE & KEY RISK INDICATORS
+    # ------------------------------------------------------------------ #
+    def seed_risk_appetite_and_kris(self):
+        cat = {c.code.replace('DEMO-', ''): c for c in RiskCategory.objects.filter(code__startswith='DEMO-')}
+        ceo = self.u('saud.rasheed')
+        for code, appetite, tolerance, text, text_ar in [
+            (None, 12, 16, 'The company accepts moderate residual risk (score up to 12) where the cost of further treatment outweighs the benefit. Risks above 16 are escalated to the Executive Committee.',
+             'تقبل الشركة مخاطر متبقية متوسطة (حتى 12) عندما تفوق تكلفة المعالجة الإضافية منفعتها. تُصعَّد المخاطر فوق 16 إلى اللجنة التنفيذية.'),
+            ('CYB', 6, 12, 'Very low appetite for cybersecurity risk affecting customer data or payment services: residual risk must not exceed 6.',
+             'شهية منخفضة جداً للمخاطر السيبرانية التي تمس بيانات العملاء أو خدمات الدفع: يجب ألا تتجاوز المخاطر المتبقية 6.'),
+            ('CMP', 6, 9, 'Zero tolerance for regulatory breaches; residual compliance risk must be kept low.',
+             'لا تسامح مع المخالفات التنظيمية؛ يجب إبقاء مخاطر الامتثال المتبقية منخفضة.'),
+            ('FIN', 12, 16, 'Moderate appetite for financial risk within the approved budget tolerance of 5%.',
+             'شهية متوسطة للمخاطر المالية ضمن حد تحمل الميزانية المعتمد 5٪.'),
+            ('STR', 15, 20, 'Higher appetite for strategic risk in pursuit of digital growth objectives.',
+             'شهية أعلى للمخاطر الاستراتيجية سعياً لأهداف النمو الرقمي.'),
+        ]:
+            RiskAppetite.objects.create(
+                organization=self.org, category=cat.get(code) if code else None, statement=text, statement_ar=text_ar,
+                max_acceptable_score=appetite, tolerance_score=tolerance, approved_by=ceo,
+                approved_date=self.d(-120), effective_from=self.d(-120), review_date=self.d(245),
+            )
+
+        kris = [
+            # kri_id, name, name_ar, risk, cat, unit, direction, warn, crit, target, freq, owner, series (oldest..latest)
+            ('KRI-001', 'Phishing simulation click rate', 'نسبة النقر في محاكاة التصيد', 'R-002', 'CYB', '%', 'up_bad', 10, 20, 5, 'monthly', 'lama.malki', [18, 15, 12, 11, 9, 7]),
+            ('KRI-002', 'Critical vulnerabilities open > 14 days', 'الثغرات الحرجة المفتوحة لأكثر من 14 يوماً', 'R-004', 'CYB', 'count', 'up_bad', 5, 10, 0, 'weekly', 'lama.malki', [12, 9, 7, 6, 4, 3]),
+            ('KRI-003', 'Privileged accounts without review (90d)', 'الحسابات المميزة غير المراجعة (90 يوماً)', 'R-003', 'CYB', 'count', 'up_bad', 10, 25, 0, 'monthly', 'majed.ghamdi', [40, 38, 35, 33, 31, 29]),
+            ('KRI-004', 'Critical systems not forwarding logs to SIEM', 'الأنظمة الحرجة غير المرتبطة بمنصة المراقبة', 'R-016', 'CYB', '%', 'up_bad', 10, 25, 0, 'monthly', 'lama.malki', [45, 40, 35, 30, 30, 28]),
+            ('KRI-005', 'Backup restore test success rate', 'نسبة نجاح اختبارات الاستعادة', 'R-017', 'OPR', '%', 'down_bad', 95, 85, 100, 'monthly', 'yousef.anazi', [90, 92, 96, 100, 96, 97]),
+            ('KRI-006', 'Payment gateway availability', 'توافر بوابة الدفع', 'R-008', 'TPR', '%', 'down_bad', 99.9, 99.5, 99.95, 'monthly', 'abdullah.qurashi', [99.97, 99.95, 99.92, 99.96, 99.4, 99.6]),
+            ('KRI-007', 'Vendors with overdue security assessment', 'الموردون ذوو التقييم الأمني المتأخر', 'R-011', 'TPR', 'count', 'up_bad', 3, 8, 0, 'quarterly', 'omar.shammari', [14, 11, 9]),
+            ('KRI-008', 'Staff with overdue security awareness training', 'الموظفون المتأخرون في التدريب التوعوي', 'R-002', 'CYB', '%', 'up_bad', 10, 20, 5, 'monthly', 'mona.dosari', [22, 19, 16, 14, 12, 9]),
+        ]
+        for kid, name, name_ar, rid, ccode, unit, direction, warn, crit, target, freq, owner, series in kris:
+            kri = KeyRiskIndicator.objects.create(
+                organization=self.org, risk=self.risks.get(rid), category=cat.get(ccode), kri_id=kid, name=name, name_ar=name_ar,
+                description=f'{name} - early warning indicator for {self.risks[rid].title}.', unit=unit, direction=direction,
+                warning_threshold=Decimal(str(warn)), critical_threshold=Decimal(str(crit)), target_value=Decimal(str(target)),
+                frequency=freq, data_source='Security tooling / monthly operations report', owner=self.u(owner),
+                created_by=self.u(owner),
+            )
+            step = {'weekly': 7, 'monthly': 30, 'quarterly': 91}.get(freq, 30)
+            # Latest measurement is recent for most KRIs; KRI-007 is deliberately overdue.
+            latest_offset = 2 if kid != 'KRI-007' else 120
+            for i, v in enumerate(series):
+                KRIMeasurement.objects.create(
+                    kri=kri, value=Decimal(str(v)), recorded_by=self.u(owner),
+                    measured_at=self.d(-(latest_offset + step * (len(series) - 1 - i))),
+                )
+
+    # ------------------------------------------------------------------ #
     # COMPLIANCE OPERATIONS
     # ------------------------------------------------------------------ #
     def seed_compliance_ops(self):
@@ -979,6 +1033,11 @@ class Command(BaseCommand):
             for dep in deps:
                 F[fid].dependent_functions.add(F[dep])
 
+        # BCM risk assessment: threats linked directly to functions (asset-linked risks are derived)
+        for fid, rids in {'BF-001': ['R-007', 'R-009'], 'BF-002': ['R-008', 'R-013'], 'BF-003': ['R-004', 'R-015'],
+                          'BF-004': ['R-015'], 'BF-005': ['R-016'], 'BF-006': ['R-009'], 'BF-010': ['R-006', 'R-019']}.items():
+            F[fid].related_risks.set([self.risks[r] for r in rids])
+
         bia = [
             # fid, rto, rpo, mtpd, impacts(1,4,8,24,72), daily loss, min staff, status
             ('BF-001', 2, 0, 8, (3, 4, 5, 5, 5), 1200000, 4, 'approved'),
@@ -1013,6 +1072,19 @@ class Command(BaseCommand):
             )
             obj.full_clean(exclude=['organization'])
             obj.save()
+
+        # Enrich BIAs: per-category impact ratings and structured system dependencies
+        for bia_obj in BusinessImpactAnalysis.objects.filter(organization=self.org).select_related('business_function'):
+            peak = bia_obj.impact_72_hours
+            crit = bia_obj.business_function.criticality
+            BusinessImpactAnalysis.objects.filter(pk=bia_obj.pk).update(
+                impact_financial=peak if crit in ('critical', 'essential') else max(1, peak - 1),
+                impact_operational=peak,
+                impact_reputational=max(1, peak - (0 if crit == 'critical' else 1)),
+                impact_regulatory=peak if bia_obj.business_function.function_id in ('BF-002', 'BF-006', 'BF-010') else max(1, peak - 2),
+                impact_customer=peak if bia_obj.business_function.function_id in ('BF-002', 'BF-003', 'BF-004') else max(1, peak - 2),
+            )
+            bia_obj.dependent_assets.set(bia_obj.business_function.related_assets.all())
 
         self.bcplans = {}
         for pid, title, title_ar, status, funcs, owner, tested in [
@@ -1060,6 +1132,29 @@ class Command(BaseCommand):
                 review_date=self.d(self.rng.randint(30, 180)), last_tested_date=self.d(tested) if tested else None,
                 approved_by=self.u('khalid.otaibi') if status != 'draft' else None, created_by=self.u('yousef.anazi'),
             )
+
+        # DR capability: what each plan can deliver and which systems it covers.
+        # Deliberately leaves gaps for the capability analysis to surface:
+        #  - Payments (BF-002) needs RTO 1h but the payment-gateway asset has no DR plan
+        #  - Customer portal needs RTO 4h; DRP-002 achieves 2h (covered once tested)
+        #  - ERP needs RTO 1h (BF-002) / 72h (payroll); DRP-003 achieves 8h -> gap for payments
+        dr_capability = {
+            'DRP-001': (4, 1, ['AST-004', 'AST-005', 'AST-009', 'AST-010'], 12),
+            'DRP-002': (2, 1, ['AST-002', 'AST-003'], 6),
+            'DRP-003': (8, 4, ['AST-001', 'AST-015'], 12),
+            'DRP-004': (24, 24, ['AST-006'], 12),
+        }
+        for pid, (rto, rpo, assets, freq) in dr_capability.items():
+            plan = self.drplans[pid]
+            plan.achievable_rto_hours, plan.achievable_rpo_hours, plan.test_frequency_months = rto, rpo, freq
+            if plan.last_tested_date:
+                plan.next_test_date = plan.last_tested_date + timedelta(days=30 * freq)
+            plan.save()
+            plan.covered_assets.set([self.assets[a] for a in assets])
+        for pid, plan in self.bcplans.items():
+            plan.test_frequency_months = 12
+            plan.next_test_date = (plan.last_tested_date + timedelta(days=365)) if plan.last_tested_date else None
+            plan.save()
 
         # Crisis teams
         cmt = CrisisManagementTeam.objects.create(organization=self.org, name='Crisis Management Team', name_ar='فريق إدارة الأزمات')
@@ -1120,6 +1215,15 @@ class Command(BaseCommand):
             )
             for f in funcs:
                 inc.affected_functions.add(F[f])
+            # Materialised risks (adds a re-assessment task for the risk owner via signal)
+            linked = {'cyber_attack': ['R-002'] if 'phishing' in title.lower() else ['R-004'],
+                      'infrastructure': ['R-007'], 'natural_disaster': [], 'operational': ['R-008'],
+                      'security': ['R-003', 'R-020']}.get(itype, [])
+            if linked:
+                inc.related_risks.set([self.risks[r] for r in linked])
+                if status in ('closed', 'resolved'):
+                    inc.financial_loss = Decimal(self.rng.choice([45000, 120000, 380000]))
+                    inc.save(update_fields=['financial_loss'])
 
         tests = [
             ('TST-%d-01' % Y, 'Annual Corporate BCP Tabletop Exercise', 'تمرين المحاكاة المكتبي لخطة الاستمرارية', 'tabletop', 'completed', 'BCP-001', None, -90, 'Pass with observations',
@@ -1154,6 +1258,16 @@ class Command(BaseCommand):
             )
             t.participants.add(*[self.u(x) for x in ['faisal.shahrani', 'khalid.otaibi', 'noura.zahrani', 'majed.ghamdi', 'yousef.anazi']])
             self.tests[tid] = t
+
+        # Normalise results to the model choices and record measured recovery times
+        result_map = {'Pass': 'pass', 'Pass with observations': 'pass_with_observations', 'Partial pass': 'partial', '': ''}
+        achieved = {'TST-%d-02' % Y: (Decimal('4.75'), Decimal('1')),   # DC failover: exceeded 4h RTO by 45 min
+                    'TST-%d-03' % Y: (Decimal('1.5'), Decimal('0.5'))}  # portal DR: within 2h
+        for tid, t in self.tests.items():
+            t.overall_result = result_map.get(t.overall_result, t.overall_result)
+            if tid in achieved:
+                t.achieved_rto_hours, t.achieved_rpo_hours = achieved[tid]
+            t.save(update_fields=['overall_result', 'achieved_rto_hours', 'achieved_rpo_hours'])
 
         for tid, title, sev, status, rec, assignee, due in [
             ('TST-%d-01' % Y, '3 call tree contacts had outdated mobile numbers', 'medium', 'resolved', 'Implement quarterly contact verification.', 'turki.juhani', -60),

@@ -340,6 +340,12 @@ class Risk(models.Model):
         """Residual risk level from the same thresholds (None when not yet assessed)."""
         from risk.utils import get_risk_level
         return get_risk_level(self.residual_risk_score, self.organization_id)
+
+    @property
+    def appetite_status(self):
+        """Compare current exposure with the applicable risk appetite statement."""
+        from risk.appetite import evaluate_appetite
+        return evaluate_appetite(self)
     
     @property
     def risk_reduction_percentage(self):
@@ -647,3 +653,244 @@ class RiskAcceptance(models.Model):
     @property
     def accepted_risk_score(self):
         return self.accepted_likelihood * self.accepted_impact
+
+
+class RiskAppetite(models.Model):
+    """
+    بيان شهية المخاطر - Board-approved appetite statement per risk category.
+    `max_acceptable_score` is the residual score the organization accepts;
+    `tolerance_score` is the ceiling above which risks are escalated.
+    """
+    organization = models.ForeignKey(
+        'core.Organization',
+        on_delete=models.CASCADE,
+        related_name='risk_appetites',
+        verbose_name=_('Organization')
+    )
+    category = models.ForeignKey(
+        RiskCategory,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='appetites',
+        verbose_name=_('Risk Category'),
+        help_text=_('Leave empty for the organization-wide default')
+    )
+    statement = models.TextField(_('Appetite Statement'))
+    statement_ar = models.TextField(_('بيان شهية المخاطر'), blank=True)
+    max_acceptable_score = models.PositiveIntegerField(
+        _('Appetite (Max Acceptable Residual Score)'), default=12,
+        help_text=_('Residual risk score (1-25) the organization is willing to accept')
+    )
+    tolerance_score = models.PositiveIntegerField(
+        _('Tolerance (Escalation Score)'), default=16,
+        help_text=_('Residual risk score above which the risk is escalated to senior management')
+    )
+    approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='approved_risk_appetites',
+        verbose_name=_('Approved By')
+    )
+    approved_date = models.DateField(_('Approved Date'), null=True, blank=True)
+    effective_from = models.DateField(_('Effective From'), null=True, blank=True)
+    review_date = models.DateField(_('Next Review Date'), null=True, blank=True)
+    is_active = models.BooleanField(_('Active'), default=True)
+    created_at = models.DateTimeField(_('Created At'), auto_now_add=True)
+    updated_at = models.DateTimeField(_('Updated At'), auto_now=True)
+
+    class Meta:
+        verbose_name = _('Risk Appetite')
+        verbose_name_plural = _('Risk Appetites')
+        unique_together = ['organization', 'category']
+        ordering = ['organization', 'category__name']
+
+    def __str__(self):
+        scope = self.category.name if self.category else 'Organization-wide'
+        return f"Appetite ({scope}): <= {self.max_acceptable_score}, tolerance {self.tolerance_score}"
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        errors = {}
+        if not 1 <= self.max_acceptable_score <= 25:
+            errors['max_acceptable_score'] = 'Must be between 1 and 25'
+        if not 1 <= self.tolerance_score <= 25:
+            errors['tolerance_score'] = 'Must be between 1 and 25'
+        if self.tolerance_score < self.max_acceptable_score:
+            errors['tolerance_score'] = 'Tolerance cannot be lower than appetite'
+        if errors:
+            raise ValidationError(errors)
+
+
+class KeyRiskIndicator(models.Model):
+    """
+    مؤشر المخاطر الرئيسي - Measurable early-warning indicator for a risk.
+    """
+    DIRECTION_CHOICES = [
+        ('up_bad', _('Higher is worse')),
+        ('down_bad', _('Lower is worse')),
+    ]
+    FREQUENCY_CHOICES = [
+        ('daily', _('Daily')),
+        ('weekly', _('Weekly')),
+        ('monthly', _('Monthly')),
+        ('quarterly', _('Quarterly')),
+    ]
+    STATUS_CHOICES = [
+        ('green', _('Green')),
+        ('amber', _('Amber')),
+        ('red', _('Red')),
+        ('no_data', _('No Data')),
+    ]
+    FREQUENCY_DAYS = {'daily': 1, 'weekly': 7, 'monthly': 31, 'quarterly': 92}
+
+    organization = models.ForeignKey(
+        'core.Organization',
+        on_delete=models.CASCADE,
+        related_name='kris',
+        verbose_name=_('Organization')
+    )
+    risk = models.ForeignKey(
+        Risk,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='kris',
+        verbose_name=_('Risk')
+    )
+    category = models.ForeignKey(
+        RiskCategory,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='kris',
+        verbose_name=_('Risk Category')
+    )
+    kri_id = models.CharField(_('KRI ID'), max_length=50)
+    name = models.CharField(_('Indicator Name'), max_length=300)
+    name_ar = models.CharField(_('اسم المؤشر'), max_length=300, blank=True)
+    description = models.TextField(_('Description'), blank=True)
+    description_ar = models.TextField(_('الوصف'), blank=True)
+    unit = models.CharField(_('Unit'), max_length=30, blank=True)
+    direction = models.CharField(_('Direction'), max_length=10, choices=DIRECTION_CHOICES, default='up_bad')
+    target_value = models.DecimalField(_('Target'), max_digits=14, decimal_places=2, null=True, blank=True)
+    warning_threshold = models.DecimalField(_('Warning (Amber) Threshold'), max_digits=14, decimal_places=2)
+    critical_threshold = models.DecimalField(_('Critical (Red) Threshold'), max_digits=14, decimal_places=2)
+    frequency = models.CharField(_('Measurement Frequency'), max_length=10, choices=FREQUENCY_CHOICES, default='monthly')
+    data_source = models.CharField(_('Data Source'), max_length=300, blank=True)
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='owned_kris',
+        verbose_name=_('Owner')
+    )
+    is_active = models.BooleanField(_('Active'), default=True)
+
+    # Denormalised latest measurement
+    current_value = models.DecimalField(_('Current Value'), max_digits=14, decimal_places=2, null=True, blank=True)
+    current_status = models.CharField(_('Current Status'), max_length=10, choices=STATUS_CHOICES, default='no_data')
+    last_measured_at = models.DateField(_('Last Measured'), null=True, blank=True)
+
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='created_kris',
+        verbose_name=_('Created By')
+    )
+    created_at = models.DateTimeField(_('Created At'), auto_now_add=True)
+    updated_at = models.DateTimeField(_('Updated At'), auto_now=True)
+
+    class Meta:
+        verbose_name = _('Key Risk Indicator')
+        verbose_name_plural = _('Key Risk Indicators')
+        unique_together = ['organization', 'kri_id']
+        ordering = ['kri_id']
+
+    def __str__(self):
+        return f"{self.kri_id}: {self.name}"
+
+    def status_for(self, value):
+        """RAG status for a value according to direction and thresholds."""
+        if value is None:
+            return 'no_data'
+        if self.direction == 'up_bad':
+            if value >= self.critical_threshold:
+                return 'red'
+            if value >= self.warning_threshold:
+                return 'amber'
+            return 'green'
+        if value <= self.critical_threshold:
+            return 'red'
+        if value <= self.warning_threshold:
+            return 'amber'
+        return 'green'
+
+    @property
+    def measurement_due_date(self):
+        if not self.last_measured_at:
+            return None
+        from datetime import timedelta
+        return self.last_measured_at + timedelta(days=self.FREQUENCY_DAYS.get(self.frequency, 31))
+
+    @property
+    def is_measurement_overdue(self):
+        due = self.measurement_due_date
+        if due is None:
+            return True
+        from django.utils import timezone
+        return timezone.localdate() > due
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        if self.warning_threshold is None or self.critical_threshold is None:
+            return
+        if self.direction == 'up_bad' and self.critical_threshold < self.warning_threshold:
+            raise ValidationError({'critical_threshold': 'For "higher is worse" the critical threshold must be >= warning'})
+        if self.direction == 'down_bad' and self.critical_threshold > self.warning_threshold:
+            raise ValidationError({'critical_threshold': 'For "lower is worse" the critical threshold must be <= warning'})
+
+
+class KRIMeasurement(models.Model):
+    """
+    قياس مؤشر المخاطر - One observation of a KRI.
+    """
+    kri = models.ForeignKey(
+        KeyRiskIndicator,
+        on_delete=models.CASCADE,
+        related_name='measurements',
+        verbose_name=_('KRI')
+    )
+    value = models.DecimalField(_('Value'), max_digits=14, decimal_places=2)
+    measured_at = models.DateField(_('Measured At'))
+    status = models.CharField(_('Status'), max_length=10, choices=KeyRiskIndicator.STATUS_CHOICES, default='no_data')
+    notes = models.TextField(_('Notes'), blank=True)
+    recorded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='kri_measurements',
+        verbose_name=_('Recorded By')
+    )
+    created_at = models.DateTimeField(_('Created At'), auto_now_add=True)
+
+    class Meta:
+        verbose_name = _('KRI Measurement')
+        verbose_name_plural = _('KRI Measurements')
+        ordering = ['-measured_at', '-created_at']
+        unique_together = ['kri', 'measured_at']
+
+    def __str__(self):
+        return f"{self.kri.kri_id} = {self.value} ({self.measured_at})"
+
+    def save(self, *args, **kwargs):
+        self.status = self.kri.status_for(self.value)
+        super().save(*args, **kwargs)
+        latest = self.kri.measurements.order_by('-measured_at', '-created_at').first()
+        if latest and latest.pk == self.pk:
+            KeyRiskIndicator.objects.filter(pk=self.kri_id).update(
+                current_value=self.value, current_status=self.status, last_measured_at=self.measured_at)

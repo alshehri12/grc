@@ -359,3 +359,175 @@ def calculate_minimum_resources(bia):
         'systems': bia.system_dependencies if bia.system_dependencies else 'Not specified',
         'vendors': bia.vendor_dependencies if bia.vendor_dependencies else 'Not specified',
     }
+
+
+# --------------------------------------------------------------------------- #
+# Exercise schedule & recovery capability analysis (ISO 22301 8.4 / 8.5)
+# --------------------------------------------------------------------------- #
+def plan_test_status(plan):
+    """
+    Test status for a BC or DR plan using its own frequency / next_test_date.
+    Returns {'needs_testing', 'overdue', 'next_test_date', 'days_until_due', 'recommendation'}.
+    """
+    from datetime import timedelta
+    from django.utils import timezone
+
+    today = timezone.localdate()
+    interval = (plan.test_frequency_months or 12) * 30
+    next_due = plan.next_test_date or (plan.last_tested_date + timedelta(days=interval) if plan.last_tested_date else None)
+    if next_due is None:
+        return {'needs_testing': True, 'overdue': True, 'next_test_date': None, 'days_until_due': None,
+                'recommendation': 'Plan has never been tested. Schedule an exercise immediately.'}
+    days = (next_due - today).days
+    if days < 0:
+        rec = f'Test is {-days} days overdue. Schedule an exercise immediately.'
+    elif days <= 90:
+        rec = f'Test due in {days} days. Schedule soon.'
+    else:
+        rec = f'Next test due on {next_due:%Y-%m-%d}.'
+    return {'needs_testing': days <= 90, 'overdue': days < 0, 'next_test_date': next_due,
+            'days_until_due': days, 'recommendation': rec}
+
+
+CAPABILITY_STATUS_ORDER = ['no_bia', 'no_dependencies', 'no_dr_plan', 'gap', 'unproven', 'untested', 'covered']
+
+
+def capability_analysis(organization, functions=None, test_interval_days=365):
+    """
+    Compare what the business NEEDS (BIA: RTO/RPO/MTPD) with what IT CAN DELIVER
+    (DR plans: achievable RTO/RPO, proven by the latest exercise).
+
+    Returns {'summary': {...}, 'functions': [ {...per function...} ]}
+    Per-function status (worst wins):
+      no_bia          - no completed/approved BIA with an RTO
+      no_dependencies - BIA/function name no systems, so capability cannot be assessed
+      no_dr_plan      - at least one dependent system has no approved/active DR plan
+      gap             - a DR plan's achievable RTO/RPO is worse than the BIA requirement
+      unproven        - the latest exercise did not meet the required RTO
+      untested        - no exercise with a measured RTO in the last `test_interval_days`
+      covered         - requirement met and proven by a recent exercise
+    """
+    from datetime import timedelta
+    from django.utils import timezone
+    from bcm.models import BusinessFunction, DisasterRecoveryPlan, BCMTest
+
+    today = timezone.localdate()
+    recent_cutoff = today - timedelta(days=test_interval_days)
+
+    if functions is None:
+        functions = BusinessFunction.objects.filter(organization=organization, status='active')
+    functions = functions.select_related('owner', 'department').prefetch_related('related_assets')
+
+    live_plans = DisasterRecoveryPlan.objects.filter(organization=organization, status__in=['approved', 'active']) \
+        .prefetch_related('covered_assets').select_related('owner')
+    plans_by_asset = {}
+    for plan in live_plans:
+        for asset in plan.covered_assets.all():
+            plans_by_asset.setdefault(asset.pk, []).append(plan)
+
+    # Latest completed exercise with a measured RTO per DR plan
+    latest_test = {}
+    for t in BCMTest.objects.filter(organization=organization, status='completed', dr_plan__isnull=False,
+                                    achieved_rto_hours__isnull=False).order_by('dr_plan_id', '-actual_end', '-scheduled_date'):
+        latest_test.setdefault(t.dr_plan_id, t)
+
+    results = []
+    for fn in functions:
+        bia = fn.bias.filter(status__in=['completed', 'approved']).order_by('-assessment_date', '-id') \
+            .prefetch_related('dependent_assets').first()
+        row = {
+            'function': {'id': fn.pk, 'function_id': fn.function_id, 'name': fn.name, 'name_ar': fn.name_ar,
+                         'criticality': fn.criticality, 'owner': fn.owner.get_full_name() if fn.owner else None,
+                         'owner_id': fn.owner_id, 'department_id': fn.department_id},
+            'required': None, 'achievable': None, 'proven': None, 'assets': [], 'status': None, 'issues': [],
+        }
+        if not bia or bia.rto_hours is None:
+            row['status'] = 'no_bia'
+            row['issues'].append('No completed BIA with an RTO')
+            results.append(row)
+            continue
+
+        row['required'] = {'rto_hours': bia.rto_hours, 'rpo_hours': bia.rpo_hours, 'mtpd_hours': bia.mtpd_hours,
+                           'bia_id': bia.pk, 'assessment_date': bia.assessment_date}
+        assets = {a.pk: a for a in bia.dependent_assets.all()}
+        assets.update({a.pk: a for a in fn.related_assets.all()})
+        if not assets:
+            row['status'] = 'no_dependencies'
+            row['issues'].append('No dependent systems linked to the BIA or function')
+            results.append(row)
+            continue
+
+        statuses = set()
+        worst_rto = worst_rpo = 0
+        proven_rto = None
+        proven_recent = True
+        for asset in assets.values():
+            plans = plans_by_asset.get(asset.pk, [])
+            a_row = {'asset_id': asset.asset_id, 'name': asset.name, 'id': asset.pk, 'plans': []}
+            if not plans:
+                a_row['status'] = 'no_dr_plan'
+                statuses.add('no_dr_plan')
+                row['issues'].append(f'{asset.name}: no approved DR plan covers this system')
+            else:
+                a_status = 'covered'
+                best_rto = min((p.achievable_rto_hours for p in plans if p.achievable_rto_hours is not None), default=None)
+                best_rpo = min((p.achievable_rpo_hours for p in plans if p.achievable_rpo_hours is not None), default=None)
+                for p in plans:
+                    t = latest_test.get(p.pk)
+                    a_row['plans'].append({
+                        'id': p.pk, 'plan_id': p.plan_id, 'title': p.title, 'owner_id': p.owner_id,
+                        'achievable_rto_hours': p.achievable_rto_hours, 'achievable_rpo_hours': p.achievable_rpo_hours,
+                        'last_tested_date': p.last_tested_date, 'next_test_date': p.next_test_date,
+                        'last_test': {'test_id': t.test_id, 'date': (t.actual_end or t.scheduled_date),
+                                      'achieved_rto_hours': float(t.achieved_rto_hours),
+                                      'achieved_rpo_hours': float(t.achieved_rpo_hours) if t.achieved_rpo_hours is not None else None,
+                                      'result': t.overall_result} if t else None,
+                    })
+                if best_rto is None:
+                    a_status = 'gap'
+                    row['issues'].append(f'{asset.name}: DR plan has no achievable RTO defined')
+                else:
+                    worst_rto = max(worst_rto, best_rto)
+                    if best_rto > bia.rto_hours:
+                        a_status = 'gap'
+                        row['issues'].append(f'{asset.name}: achievable RTO {best_rto}h exceeds required {bia.rto_hours}h')
+                if best_rpo is not None and bia.rpo_hours is not None:
+                    worst_rpo = max(worst_rpo, best_rpo)
+                    if best_rpo > bia.rpo_hours:
+                        a_status = 'gap'
+                        row['issues'].append(f'{asset.name}: achievable RPO {best_rpo}h exceeds required {bia.rpo_hours}h')
+                # proof by exercise
+                tests = [latest_test.get(p.pk) for p in plans if latest_test.get(p.pk)]
+                if not tests:
+                    proven_recent = False
+                    if a_status == 'covered':
+                        a_status = 'untested'
+                        row['issues'].append(f'{asset.name}: no exercise has measured the recovery time')
+                else:
+                    best = min(tests, key=lambda t: t.achieved_rto_hours)
+                    tested_on = (best.actual_end.date() if best.actual_end else best.scheduled_date)
+                    achieved = float(best.achieved_rto_hours)
+                    proven_rto = max(proven_rto or 0, achieved)
+                    if tested_on < recent_cutoff:
+                        proven_recent = False
+                        if a_status == 'covered':
+                            a_status = 'untested'
+                            row['issues'].append(f'{asset.name}: last measured exercise was on {tested_on:%Y-%m-%d} (older than {test_interval_days} days)')
+                    elif achieved > bia.rto_hours and a_status == 'covered':
+                        a_status = 'unproven'
+                        row['issues'].append(f'{asset.name}: last exercise achieved {achieved:g}h against a required {bia.rto_hours}h')
+                statuses.add(a_status)
+            row['assets'].append(a_row)
+
+        row['achievable'] = {'rto_hours': worst_rto if worst_rto else None, 'rpo_hours': worst_rpo if worst_rpo else None}
+        row['proven'] = {'rto_hours': proven_rto, 'recent': proven_recent}
+        row['status'] = next(s for s in CAPABILITY_STATUS_ORDER if s in statuses)
+        results.append(row)
+
+    summary = {s: 0 for s in CAPABILITY_STATUS_ORDER}
+    for r in results:
+        summary[r['status']] += 1
+    summary['total'] = len(results)
+    summary['critical_at_risk'] = sum(1 for r in results if r['function']['criticality'] in ('critical', 'essential')
+                                      and r['status'] != 'covered')
+    return {'summary': summary, 'functions': results}

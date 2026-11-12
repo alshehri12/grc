@@ -82,6 +82,14 @@ class BusinessFunction(models.Model):
         verbose_name=_('Related Assets')
     )
     
+    # Threats to this function (BCM risk assessment). Asset-linked risks are added automatically in reports.
+    related_risks = models.ManyToManyField(
+        'risk.Risk',
+        blank=True,
+        related_name='business_functions',
+        verbose_name=_('Related Risks')
+    )
+    
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, 
         on_delete=models.SET_NULL, 
@@ -154,6 +162,21 @@ class BusinessImpactAnalysis(models.Model):
     impact_8_hours = models.PositiveIntegerField(_('Impact (8 Hours)'), default=3, help_text=_('1-5 scale'))
     impact_24_hours = models.PositiveIntegerField(_('Impact (24 Hours)'), default=4, help_text=_('1-5 scale'))
     impact_72_hours = models.PositiveIntegerField(_('Impact (72 Hours)'), default=5, help_text=_('1-5 scale'))
+    
+    # Impact by category at the MTPD horizon (ISO/TS 22317), 1-5 scale
+    impact_financial = models.PositiveIntegerField(_('Financial Impact'), default=1, help_text=_('1-5 scale'))
+    impact_operational = models.PositiveIntegerField(_('Operational Impact'), default=1, help_text=_('1-5 scale'))
+    impact_reputational = models.PositiveIntegerField(_('Reputational Impact'), default=1, help_text=_('1-5 scale'))
+    impact_regulatory = models.PositiveIntegerField(_('Regulatory/Legal Impact'), default=1, help_text=_('1-5 scale'))
+    impact_customer = models.PositiveIntegerField(_('Customer/Service Impact'), default=1, help_text=_('1-5 scale'))
+    
+    # Structured dependencies (the free-text fields below remain as narrative)
+    dependent_assets = models.ManyToManyField(
+        'risk.Asset',
+        blank=True,
+        related_name='bias',
+        verbose_name=_('Dependent Systems/Assets')
+    )
     
     # Financial impact
     financial_impact_daily = models.DecimalField(
@@ -234,7 +257,9 @@ class BusinessImpactAnalysis(models.Model):
         
         # Validate impact values are 1-5
         for field in ['impact_1_hour', 'impact_4_hours', 'impact_8_hours', 
-                      'impact_24_hours', 'impact_72_hours']:
+                      'impact_24_hours', 'impact_72_hours',
+                      'impact_financial', 'impact_operational', 'impact_reputational',
+                      'impact_regulatory', 'impact_customer']:
             value = getattr(self, field, None)
             if value is not None and (value < 1 or value > 5):
                 errors[field] = f'{field.replace("_", " ").title()} must be between 1 and 5'
@@ -367,6 +392,8 @@ class BCPlan(models.Model):
     effective_date = models.DateField(_('Effective Date'), null=True, blank=True)
     review_date = models.DateField(_('Next Review Date'), null=True, blank=True)
     last_tested_date = models.DateField(_('Last Tested Date'), null=True, blank=True)
+    test_frequency_months = models.PositiveIntegerField(_('Test Frequency (Months)'), default=12)
+    next_test_date = models.DateField(_('Next Test Date'), null=True, blank=True)
     
     # Approval
     approved_by = models.ForeignKey(
@@ -478,6 +505,18 @@ class DisasterRecoveryPlan(models.Model):
     effective_date = models.DateField(_('Effective Date'), null=True, blank=True)
     review_date = models.DateField(_('Next Review Date'), null=True, blank=True)
     last_tested_date = models.DateField(_('Last Tested Date'), null=True, blank=True)
+    test_frequency_months = models.PositiveIntegerField(_('Test Frequency (Months)'), default=12)
+    next_test_date = models.DateField(_('Next Test Date'), null=True, blank=True)
+    
+    # Recovery capability this plan can deliver (compared with BIA requirements)
+    achievable_rto_hours = models.PositiveIntegerField(_('Achievable RTO (Hours)'), null=True, blank=True)
+    achievable_rpo_hours = models.PositiveIntegerField(_('Achievable RPO (Hours)'), null=True, blank=True)
+    covered_assets = models.ManyToManyField(
+        'risk.Asset',
+        blank=True,
+        related_name='dr_plans',
+        verbose_name=_('Covered Systems/Assets')
+    )
     
     approved_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, 
@@ -736,6 +775,15 @@ class CrisisIncident(models.Model):
     response_actions_ar = models.TextField(_('إجراءات الاستجابة'), blank=True)
     
     # Team assignment
+    related_risks = models.ManyToManyField(
+        'risk.Risk',
+        blank=True,
+        related_name='incidents',
+        verbose_name=_('Related Risks'),
+        help_text=_('Risks that materialised in this incident')
+    )
+    financial_loss = models.DecimalField(_('Estimated Financial Loss (SAR)'), max_digits=15, decimal_places=2, null=True, blank=True)
+    
     crisis_team = models.ForeignKey(
         CrisisManagementTeam, 
         on_delete=models.SET_NULL, 
@@ -887,7 +935,17 @@ class BCMTest(models.Model):
     )
     
     # Results
-    overall_result = models.CharField(_('Overall Result'), max_length=20, blank=True)
+    RESULT_CHOICES = [
+        ('pass', _('Pass')),
+        ('pass_with_observations', _('Pass with Observations')),
+        ('partial', _('Partial Pass')),
+        ('fail', _('Fail')),
+    ]
+    overall_result = models.CharField(_('Overall Result'), max_length=30, choices=RESULT_CHOICES, blank=True)
+    
+    # Recovery metrics measured during the exercise (compared with BIA requirements)
+    achieved_rto_hours = models.DecimalField(_('Achieved RTO (Hours)'), max_digits=7, decimal_places=2, null=True, blank=True)
+    achieved_rpo_hours = models.DecimalField(_('Achieved RPO (Hours)'), max_digits=7, decimal_places=2, null=True, blank=True)
     results_summary = models.TextField(_('Results Summary'), blank=True)
     results_summary_ar = models.TextField(_('ملخص النتائج'), blank=True)
     

@@ -1,6 +1,10 @@
 """
 BCM app views.
 """
+from datetime import timedelta
+
+from django.db.models import Q
+from django.utils import timezone
 from rest_framework import viewsets, status
 from core.audit import AuditedModelViewSet
 from rest_framework.decorators import action
@@ -38,6 +42,58 @@ class BusinessFunctionViewSet(AuditedModelViewSet):
         if self.action == 'list':
             return BusinessFunctionListSerializer
         return BusinessFunctionSerializer
+
+    @action(detail=False, methods=['get'])
+    def capability_analysis(self, request):
+        """
+        Recovery capability report: what the business needs (BIA RTO/RPO) vs what
+        DR plans can deliver and what exercises have proven.
+        GET /api/bcm/functions/capability_analysis/?organization=<id>[&criticality=critical,essential]
+        """
+        from django.conf import settings as dj_settings
+        from bcm.utils import capability_analysis
+        org_id = request.query_params.get('organization')
+        if not org_id:
+            return Response({'error': 'organization parameter is required'}, status=400)
+        functions = self.queryset.filter(organization_id=org_id, status='active')
+        crit = request.query_params.get('criticality')
+        if crit:
+            functions = functions.filter(criticality__in=crit.split(','))
+        interval = dj_settings.GRC_AUTOMATION.get('PLAN_TEST_INTERVAL_DAYS', 365)
+        return Response(capability_analysis(org_id, functions, test_interval_days=interval))
+
+    @action(detail=True, methods=['get'])
+    def threat_profile(self, request, pk=None):
+        """
+        BCM risk assessment for a function: risks linked directly plus risks on its
+        dependent assets, with current exposure and appetite status.
+        """
+        from risk.models import Risk
+        fn = self.get_object()
+        asset_ids = set(fn.related_assets.values_list('id', flat=True))
+        bia = fn.bias.filter(status__in=['completed', 'approved']).order_by('-assessment_date').first()
+        if bia:
+            asset_ids |= set(bia.dependent_assets.values_list('id', flat=True))
+        risks = Risk.objects.filter(Q(business_functions=fn) | Q(assets__in=asset_ids)).exclude(status='closed') \
+            .select_related('category', 'owner').distinct()
+        rows = []
+        for r in risks:
+            a = r.appetite_status
+            rows.append({'id': r.pk, 'risk_id': r.risk_id, 'title': r.title, 'risk_type': r.risk_type,
+                         'category': r.category.name if r.category else None, 'status': r.status,
+                         'inherent_score': r.inherent_risk_score, 'inherent_level': r.risk_level,
+                         'residual_score': r.residual_risk_score, 'residual_level': r.residual_risk_level,
+                         'appetite_status': a['status'], 'owner': r.owner.get_full_name() if r.owner else None,
+                         'direct': fn.related_risks.filter(pk=r.pk).exists(),
+                         'incidents_12m': r.incidents.filter(reported_at__gte=timezone.now() - timedelta(days=365)).count()})
+        rows.sort(key=lambda x: -(x['residual_score'] or x['inherent_score']))
+        levels = {'critical': 0, 'high': 0, 'medium': 0, 'low': 0}
+        for row in rows:
+            levels[row['residual_level'] or row['inherent_level']] += 1
+        return Response({'function': {'id': fn.pk, 'function_id': fn.function_id, 'name': fn.name, 'criticality': fn.criticality},
+                         'summary': {'total': len(rows), 'by_level': levels,
+                                     'outside_appetite': sum(1 for x in rows if x['appetite_status'] != 'within')},
+                         'risks': rows})
     
     @action(detail=False, methods=['get'])
     def hierarchy(self, request):
@@ -216,11 +272,11 @@ class BCPlanViewSet(AuditedModelViewSet):
         Analyze BC Plan coverage of critical functions.
         GET /api/bcm/bc-plans/{id}/coverage_analysis/
         """
-        from bcm.utils import validate_bc_plan_coverage, check_plan_test_status
+        from bcm.utils import validate_bc_plan_coverage, plan_test_status
         
         plan = self.get_object()
         coverage = validate_bc_plan_coverage(plan)
-        test_status = check_plan_test_status(plan)
+        test_status = plan_test_status(plan)
         
         return Response({
             'plan_id': plan.plan_id,
@@ -406,15 +462,19 @@ class BCMTestViewSet(AuditedModelViewSet):
             test.actual_start = test.actual_end
         test.overall_result = request.data.get('result', test.overall_result)
         test.results_summary = request.data.get('summary', test.results_summary)
+        for f in ('achieved_rto_hours', 'achieved_rpo_hours', 'strengths_identified', 'weaknesses_identified', 'lessons_learned'):
+            if f in request.data and request.data[f] not in (None, ''):
+                setattr(test, f, request.data[f])
         test.save()
-        # Keep the tested plans' "last tested" dates in sync.
+        # Keep the tested plans' schedule in sync: last tested today, next test per plan frequency.
         today = test.actual_end.date()
-        if test.bc_plan_id:
-            type(test.bc_plan).objects.filter(pk=test.bc_plan_id).update(last_tested_date=today)
-        if test.dr_plan_id:
-            type(test.dr_plan).objects.filter(pk=test.dr_plan_id).update(last_tested_date=today)
-        log_action(request.user, 'update', test,
-                   changes={'status': [previous, 'completed'], 'overall_result': test.overall_result}, request=request)
+        for plan in (test.bc_plan, test.dr_plan):
+            if plan is not None:
+                next_due = today + timedelta(days=30 * (plan.test_frequency_months or 12))
+                type(plan).objects.filter(pk=plan.pk).update(last_tested_date=today, next_test_date=next_due)
+        log_action(request.user, 'update', test, request=request,
+                   changes={'status': [previous, 'completed'], 'overall_result': test.overall_result,
+                            'achieved_rto_hours': str(test.achieved_rto_hours) if test.achieved_rto_hours is not None else None})
         return Response(BCMTestSerializer(test).data)
 
 

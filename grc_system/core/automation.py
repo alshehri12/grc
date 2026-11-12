@@ -239,18 +239,23 @@ def send_review_reminders():
     counts['risks'] = n
 
     n = 0
-    test_cutoff = day - timedelta(days=conf('PLAN_TEST_INTERVAL_DAYS'))
+    from bcm.utils import plan_test_status
     for model, label, ct in ((BCPlan, 'BC plan', 'bcm.bcplan'), (DisasterRecoveryPlan, 'DR plan', 'bcm.disasterrecoveryplan')):
         live = model.objects.filter(status__in=['approved', 'active']).select_related('owner')
         for plan in live.filter(review_date__lte=warn):
             n += remind(plan, [plan.owner], f'{label} review - {plan.plan_id} {plan.title}', plan.review_date, ct, 'bcm_test')
-        for plan in live.filter(Q(last_tested_date__lt=test_cutoff) | Q(last_tested_date__isnull=True)):
+        for plan in live:
+            ts = plan_test_status(plan)
+            if not ts['needs_testing']:
+                continue
             last = plan.last_tested_date.strftime('%Y-%m-%d') if plan.last_tested_date else 'never'
+            subject = (f"OVERDUE exercise: {plan.plan_id} {plan.title}" if ts['overdue']
+                       else f"Exercise due soon: {plan.plan_id} {plan.title}")
             for u in _recipients(plan.owner):
-                if notify_once(u, f'Annual exercise required: {plan.plan_id} {plan.title}',
-                               f"{label} '{plan.title}' was last tested: {last}. Plans must be exercised at least every "
-                               f"{conf('PLAN_TEST_INTERVAL_DAYS')} days. Please schedule a test.",
-                               ct, plan.pk, priority='high', template_event='bcm_test'):
+                if notify_once(u, subject,
+                               f"{label} '{plan.title}' was last tested: {last}. {ts['recommendation']} "
+                               f"(frequency: every {plan.test_frequency_months} months).",
+                               ct, plan.pk, priority='high' if ts['overdue'] else 'normal', template_event='bcm_test'):
                     n += 1
     counts['plans'] = n
 
@@ -444,6 +449,29 @@ def _kpi_evidence_expiring(org):
                                            valid_until__range=(day, day + timedelta(days=30))).count())
 
 
+@kpi_metric('risks_outside_appetite')
+def _kpi_outside_appetite(org):
+    from risk.models import Risk
+    return Decimal(sum(1 for r in Risk.objects.filter(organization=org).exclude(status__in=['closed', 'pending_approval'])
+                       if r.appetite_status['status'] != 'within'))
+
+
+@kpi_metric('kris_red')
+def _kpi_kris_red(org):
+    from risk.models import KeyRiskIndicator
+    return Decimal(KeyRiskIndicator.objects.filter(organization=org, is_active=True, current_status='red').count())
+
+
+@kpi_metric('critical_functions_recoverable_pct')
+def _kpi_recoverable(org):
+    from bcm.utils import capability_analysis
+    from bcm.models import BusinessFunction
+    fns = BusinessFunction.objects.filter(organization=org, status='active', criticality__in=['critical', 'essential'])
+    report = capability_analysis(org, fns, test_interval_days=conf('PLAN_TEST_INTERVAL_DAYS'))
+    total = report['summary']['total']
+    return Decimal(100) if not total else Decimal(round(report['summary']['covered'] / total * 100, 2))
+
+
 @kpi_metric('overdue_approvals')
 def _kpi_overdue_approvals(org):
     from workflow.models import Approval
@@ -476,6 +504,116 @@ def snapshot_kpis():
 
 
 # --------------------------------------------------------------------------- #
+# 4b. Risk governance: appetite breaches, KRIs, recovery capability gaps
+# --------------------------------------------------------------------------- #
+def check_risk_appetite_breaches():
+    """
+    Flag open risks whose exposure exceeds the applicable appetite: notify the
+    owner and department manager, create a treatment task when none is active,
+    and escalate risks above tolerance to the next management level.
+    """
+    from risk.models import Risk
+    from workflow.models import Task
+    from notifications.models import Escalation
+
+    counts = {'within': 0, 'tolerance': 0, 'breach': 0, 'tasks_created': 0, 'escalations': 0}
+    risks = Risk.objects.exclude(status__in=['closed', 'pending_approval']).select_related('owner', 'department', 'category')
+    for risk in risks:
+        a = risk.appetite_status
+        counts[a['status']] += 1
+        if a['status'] == 'within':
+            continue
+        label = 'ABOVE TOLERANCE' if a['status'] == 'breach' else 'Outside appetite'
+        body = (f"Risk {risk.risk_id} '{risk.title}' has a {a['basis']} score of {a['score']} against an appetite of "
+                f"{a['appetite']} (tolerance {a['tolerance']}). A treatment plan bringing the risk within appetite is required.")
+        for u in _recipients(risk.owner, _dept_manager(risk)):
+            notify_once(u, f"{label}: {risk.risk_id} {risk.title}", body, 'risk.risk', risk.pk,
+                        priority='urgent' if a['status'] == 'breach' else 'high', template_event='risk_assessment')
+
+        has_treatment = risk.treatments.filter(status__in=['planned', 'in_progress']).exists()
+        has_task = Task.objects.filter(content_type='risk.risk', object_id=risk.pk, task_type='remediation',
+                                       status__in=['pending', 'in_progress', 'overdue']).exists()
+        if risk.owner and not has_treatment and not has_task:
+            Task.objects.create(
+                title=f'Define treatment plan for {risk.risk_id} (outside risk appetite)',
+                task_type='remediation', priority='critical' if a['status'] == 'breach' else 'high',
+                description=body, assigned_to=risk.owner, content_type='risk.risk', object_id=risk.pk,
+                due_date=timezone.now() + timedelta(days=14 if a['status'] == 'breach' else 30),
+            )
+            counts['tasks_created'] += 1
+
+        if a['status'] == 'breach':
+            already = Escalation.objects.filter(content_type='risk.risk', object_id=risk.pk,
+                                                status__in=['pending', 'escalated']).exists()
+            if not already:
+                dept = risk.department
+                target = None
+                while dept is not None and target is None:
+                    if dept.manager_id and dept.manager_id != risk.owner_id:
+                        target = dept.manager
+                    dept = dept.parent
+                Escalation.objects.create(
+                    content_type='risk.risk', object_id=risk.pk, object_title=f'{risk.risk_id} {risk.title}'[:500],
+                    level=2, escalated_from=risk.owner, escalated_to=target,
+                    reason=f"Residual score {a['score']} exceeds risk tolerance {a['tolerance']}", status='pending')
+                counts['escalations'] += 1
+    return counts
+
+
+def check_kri_status():
+    """Remind KRI owners of overdue measurements and keep red indicators visible."""
+    from risk.models import KeyRiskIndicator
+
+    counts = {'measurement_overdue': 0, 'red': 0}
+    for kri in KeyRiskIndicator.objects.filter(is_active=True).select_related('owner', 'risk__owner'):
+        if kri.is_measurement_overdue:
+            counts['measurement_overdue'] += 1
+            due = kri.measurement_due_date
+            notify_once(kri.owner, f'KRI measurement overdue: {kri.kri_id} {kri.name}',
+                        f"Indicator '{kri.name}' is measured {kri.get_frequency_display().lower()}; the last value was recorded "
+                        f"{kri.last_measured_at or 'never'}" + (f" (due {due:%Y-%m-%d})." if due else '.'),
+                        'risk.keyriskindicator', kri.pk, priority='normal', template_event='risk_assessment')
+        if kri.current_status == 'red':
+            counts['red'] += 1
+            for u in _recipients(kri.owner, kri.risk.owner if kri.risk_id else None):
+                notify_once(u, f'KRI RED: {kri.kri_id} {kri.name} = {kri.current_value}{kri.unit}',
+                            f"Indicator '{kri.name}' remains above its critical threshold ({kri.critical_threshold}{kri.unit}).",
+                            'risk.keyriskindicator', kri.pk, priority='urgent', template_event='risk_assessment')
+    return counts
+
+
+def check_capability_gaps():
+    """Run the recovery capability analysis per organization and alert function and DR plan owners to gaps."""
+    from django.contrib.auth import get_user_model
+    from core.models import Organization
+    from bcm.utils import capability_analysis
+
+    User = get_user_model()
+    counts = {'functions_checked': 0, 'gaps': 0, 'notified': 0}
+    for org in Organization.objects.filter(is_active=True):
+        report = capability_analysis(org, test_interval_days=conf('PLAN_TEST_INTERVAL_DAYS'))
+        for row in report['functions']:
+            counts['functions_checked'] += 1
+            if row['status'] == 'covered':
+                continue
+            if row['function']['criticality'] not in ('critical', 'essential'):
+                continue
+            counts['gaps'] += 1
+            owner_ids = {row['function']['owner_id']}
+            for asset in row['assets']:
+                for plan in asset['plans']:
+                    owner_ids.add(plan['owner_id'])
+            owner_ids.discard(None)
+            issues = '\n'.join(f'- {i}' for i in row['issues'][:10])
+            for u in User.objects.filter(pk__in=owner_ids, is_active=True):
+                if notify_once(u, f"Recovery capability gap ({row['status']}): {row['function']['function_id']} {row['function']['name']}",
+                               f"Required RTO {row['required']['rto_hours'] if row['required'] else 'n/a'}h. Issues:\n{issues}",
+                               'bcm.businessfunction', row['function']['id'], priority='high', template_event='bcm_test'):
+                    counts['notified'] += 1
+    return counts
+
+
+# --------------------------------------------------------------------------- #
 # 5. Delivery
 # --------------------------------------------------------------------------- #
 def deliver_notifications(limit=500):
@@ -496,6 +634,9 @@ JOBS = OrderedDict([
     ('expire_risk_acceptances', expire_risk_acceptances),
     ('recalculate_residual_risks', recalculate_residual_risks),
     ('refresh_gap_assessments', refresh_gap_assessments),
+    ('check_risk_appetite_breaches', check_risk_appetite_breaches),
+    ('check_kri_status', check_kri_status),
+    ('check_capability_gaps', check_capability_gaps),
     ('snapshot_kpis', snapshot_kpis),
     ('deliver_notifications', deliver_notifications),
 ])

@@ -215,6 +215,9 @@ CELERY_BEAT_SCHEDULE = {
     'recalculate-residual-risks': {'task': 'grc.automation.recalculate_residual_risks', 'schedule': crontab(hour=2, minute=0)},
     'refresh-gap-assessments':    {'task': 'grc.automation.refresh_gap_assessments',    'schedule': crontab(hour=3, minute=0)},
     'snapshot-kpis':              {'task': 'grc.automation.snapshot_kpis',              'schedule': crontab(hour=4, minute=0)},
+    'check-risk-appetite':        {'task': 'grc.automation.check_risk_appetite_breaches','schedule': crontab(hour=7, minute=30)},
+    'check-kri-status':           {'task': 'grc.automation.check_kri_status',           'schedule': crontab(hour=7, minute=40)},
+    'check-capability-gaps':      {'task': 'grc.automation.check_capability_gaps',      'schedule': crontab(hour=7, minute=50, day_of_week='sun')},
 }
 
 # Thresholds used by the automation jobs (days). Override via environment if needed.
