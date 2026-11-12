@@ -58,6 +58,16 @@ class ControlImplementationSerializer(serializers.ModelSerializer):
         fields = '__all__'
         read_only_fields = ['created_at', 'updated_at']
 
+    def validate(self, attrs):
+        status = attrs.get('status', getattr(self.instance, 'status', None))
+        justification = attrs.get('applicability_justification',
+                                  getattr(self.instance, 'applicability_justification', ''))
+        if status == 'not_applicable' and not (justification or '').strip():
+            raise serializers.ValidationError({
+                'applicability_justification': 'A justification is required when a control is marked Not Applicable '
+                                               '(Statement of Applicability).'})
+        return attrs
+
 
 class AuditSerializer(serializers.ModelSerializer):
     lead_auditor_name = serializers.CharField(source='lead_auditor.get_full_name', read_only=True)

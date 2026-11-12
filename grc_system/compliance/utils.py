@@ -494,3 +494,42 @@ def get_audit_statistics(organization):
             due_date__lt=timezone.now().date()
         ).count(),
     }
+
+
+def build_soa_rows(organization_id, framework_id):
+    """Statement of Applicability rows + summary for one framework."""
+    from django.db.models import Count, Q
+    from compliance.models import Control, ControlFramework, ControlImplementation
+    from core.models import Organization
+
+    framework = ControlFramework.objects.get(pk=framework_id)
+    organization = Organization.objects.get(pk=organization_id)
+    impls = {i.control_id: i for i in ControlImplementation.objects.filter(
+        organization_id=organization_id, control__domain__framework_id=framework_id)
+        .select_related('owner').annotate(evidence_ok=Count('evidences', filter=Q(evidences__status='accepted')))}
+    rows, summary = [], {'total': 0, 'applicable': 0, 'not_applicable': 0, 'missing_justification': 0,
+                         'implemented': 0, 'partially_implemented': 0, 'not_implemented': 0, 'no_record': 0}
+    for control in Control.objects.filter(domain__framework_id=framework_id).select_related('domain').order_by('domain__order', 'order', 'control_id'):
+        impl = impls.get(control.pk)
+        applicable = not (impl and impl.status == 'not_applicable')
+        status = impl.status if impl else 'no_record'
+        summary['total'] += 1
+        summary['applicable' if applicable else 'not_applicable'] += 1
+        if not applicable and not (impl.applicability_justification or '').strip():
+            summary['missing_justification'] += 1
+        if status in ('implemented', 'partially_implemented', 'not_implemented', 'no_record'):
+            summary[status] += 1
+        rows.append({
+            'control_id': control.control_id, 'title': control.title, 'title_ar': control.title_ar,
+            'domain': control.domain.name, 'control_type': control.control_type,
+            'applicable': applicable,
+            'justification': (impl.applicability_justification if impl else '') or '',
+            'status': status, 'maturity_level': impl.maturity_level if impl else None,
+            'owner': impl.owner.get_full_name() if impl and impl.owner else None,
+            'last_tested_date': impl.last_tested_date if impl else None,
+            'evidence_accepted': impl.evidence_ok if impl else 0,
+            'implementation_id': impl.pk if impl else None,
+        })
+    return {'organization': {'id': organization.pk, 'name': organization.name},
+            'framework': {'id': framework.pk, 'code': framework.code, 'name': framework.name, 'version': framework.version},
+            'summary': summary, 'rows': rows}

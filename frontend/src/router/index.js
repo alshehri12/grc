@@ -18,6 +18,10 @@ const Documents = () => import('@/views/governance/Documents.vue')
 // Risk
 const RiskRegister = () => import('@/views/risk/RiskRegister.vue')
 const RiskMatrix = () => import('@/views/risk/RiskMatrix.vue')
+const Treatments = () => import('@/views/risk/Treatments.vue')
+const Acceptances = () => import('@/views/risk/Acceptances.vue')
+const Appetite = () => import('@/views/risk/Appetite.vue')
+const KRIs = () => import('@/views/risk/KRIs.vue')
 
 // BCM
 const BusinessFunctions = () => import('@/views/bcm/BusinessFunctions.vue')
@@ -25,11 +29,16 @@ const BCPlans = () => import('@/views/bcm/BCPlans.vue')
 const BIA = () => import('@/views/bcm/BIA.vue')
 const DRPlans = () => import('@/views/bcm/DRPlans.vue')
 const BCMTests = () => import('@/views/bcm/BCMTests.vue')
+const Incidents = () => import('@/views/bcm/Incidents.vue')
+const Capability = () => import('@/views/bcm/Capability.vue')
 
 // Compliance
 const Controls = () => import('@/views/compliance/Controls.vue')
 const Audits = () => import('@/views/compliance/Audits.vue')
 const Evidence = () => import('@/views/compliance/Evidence.vue')
+const Findings = () => import('@/views/compliance/Findings.vue')
+const GapAssessments = () => import('@/views/compliance/GapAssessments.vue')
+const Reports = () => import('@/views/reports/Reports.vue')
 
 // Workflow
 const TaskInbox = () => import('@/views/workflow/TaskInbox.vue')
@@ -90,6 +99,10 @@ const routes = [
                 name: 'RiskMatrix',
                 component: RiskMatrix
             },
+            { path: 'risk/treatments', name: 'Treatments', component: Treatments },
+            { path: 'risk/acceptances', name: 'Acceptances', component: Acceptances },
+            { path: 'risk/appetite', name: 'Appetite', component: Appetite },
+            { path: 'risk/kris', name: 'KRIs', component: KRIs },
             // BCM
             {
                 path: 'bcm/functions',
@@ -116,6 +129,8 @@ const routes = [
                 name: 'BCMTests',
                 component: BCMTests
             },
+            { path: 'bcm/incidents', name: 'Incidents', component: Incidents },
+            { path: 'bcm/capability', name: 'Capability', component: Capability },
             // Compliance
             {
                 path: 'compliance/controls',
@@ -132,6 +147,9 @@ const routes = [
                 name: 'Evidence',
                 component: Evidence
             },
+            { path: 'compliance/findings', name: 'Findings', component: Findings },
+            { path: 'compliance/gap-assessments', name: 'GapAssessments', component: GapAssessments },
+            { path: 'reports', name: 'Reports', component: Reports },
             // Workflow
             {
                 path: 'workflow',

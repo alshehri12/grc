@@ -11,7 +11,8 @@
     "compliance": "Compliance",
     "settings": "Settings",
     "profile": "Profile",
-    "logout": "Logout"
+    "logout": "Logout",
+    "reports": "Reports"
   },
   "governance": {
     "title": "Governance",
@@ -43,7 +44,11 @@
     "impact": "Impact",
     "riskType": "Risk Type",
     "inherentRisk": "Inherent Risk",
-    "residualRisk": "Residual Risk"
+    "residualRisk": "Residual Risk",
+    "treatments": "Treatment Plans",
+    "acceptances": "Risk Acceptance",
+    "appetite": "Risk Appetite",
+    "kris": "Key Risk Indicators"
   },
   "bcm": {
     "title": "Business Continuity",
@@ -70,15 +75,17 @@
     "criticality": "Criticality",
     "newTest": "New Test",
     "editTest": "Edit Test",
-    "testDetails": "Test Details"
+    "testDetails": "Test Details",
+    "incidents": "Incidents & Crisis",
+    "capability": "Recovery Capability"
   },
   "compliance": {
     "title": "Compliance",
     "controls": "Controls",
     "audits": "Audits",
-    "findings": "Findings",
+    "findings": "Findings & CARs",
     "evidence": "Evidence",
-    "gap": "Gap Analysis",
+    "gap": "Gap Assessment & SoA",
     "newControl": "New Control",
     "editControl": "Edit Control",
     "controlDetails": "Control Details",
@@ -225,5 +232,9 @@
     "completionNotes": "Completion Notes",
     "rejectionReason": "Rejection Reason",
     "approvalComments": "Approval Comments"
+  },
+  "reports": {
+    "title": "Reports",
+    "board": "Board Reports"
   }
 }

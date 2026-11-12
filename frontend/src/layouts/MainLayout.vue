@@ -62,6 +62,30 @@
                             <span v-if="!appStore.sidebarCollapsed">{{ $t('risk.matrix') }}</span>
                         </router-link>
                     </li>
+                    <li>
+                        <router-link to="/risk/treatments" class="menu-item">
+                            <i class="pi pi-wrench"></i>
+                            <span v-if="!appStore.sidebarCollapsed">{{ $t('risk.treatments') }}</span>
+                        </router-link>
+                    </li>
+                    <li>
+                        <router-link to="/risk/acceptances" class="menu-item">
+                            <i class="pi pi-check"></i>
+                            <span v-if="!appStore.sidebarCollapsed">{{ $t('risk.acceptances') }}</span>
+                        </router-link>
+                    </li>
+                    <li>
+                        <router-link to="/risk/appetite" class="menu-item">
+                            <i class="pi pi-sliders-h"></i>
+                            <span v-if="!appStore.sidebarCollapsed">{{ $t('risk.appetite') }}</span>
+                        </router-link>
+                    </li>
+                    <li>
+                        <router-link to="/risk/kris" class="menu-item">
+                            <i class="pi pi-chart-line"></i>
+                            <span v-if="!appStore.sidebarCollapsed">{{ $t('risk.kris') }}</span>
+                        </router-link>
+                    </li>
                     
                     <!-- BCM -->
                     <li class="menu-section" v-if="!appStore.sidebarCollapsed">
@@ -97,6 +121,18 @@
                             <span v-if="!appStore.sidebarCollapsed">{{ $t('bcm.tests') }}</span>
                         </router-link>
                     </li>
+                    <li>
+                        <router-link to="/bcm/incidents" class="menu-item">
+                            <i class="pi pi-bolt"></i>
+                            <span v-if="!appStore.sidebarCollapsed">{{ $t('bcm.incidents') }}</span>
+                        </router-link>
+                    </li>
+                    <li>
+                        <router-link to="/bcm/capability" class="menu-item">
+                            <i class="pi pi-compass"></i>
+                            <span v-if="!appStore.sidebarCollapsed">{{ $t('bcm.capability') }}</span>
+                        </router-link>
+                    </li>
                     
                     <!-- Compliance -->
                     <li class="menu-section" v-if="!appStore.sidebarCollapsed">
@@ -120,7 +156,30 @@
                             <span v-if="!appStore.sidebarCollapsed">{{ $t('compliance.evidence') }}</span>
                         </router-link>
                     </li>
+                    <li>
+                        <router-link to="/compliance/findings" class="menu-item">
+                            <i class="pi pi-flag"></i>
+                            <span v-if="!appStore.sidebarCollapsed">{{ $t('compliance.findings') }}</span>
+                        </router-link>
+                    </li>
+                    <li>
+                        <router-link to="/compliance/gap-assessments" class="menu-item">
+                            <i class="pi pi-chart-pie"></i>
+                            <span v-if="!appStore.sidebarCollapsed">{{ $t('compliance.gap') }}</span>
+                        </router-link>
+                    </li>
                     
+                    <!-- Reports -->
+                    <li class="menu-section" v-if="!appStore.sidebarCollapsed">
+                        {{ $t('reports.title') }}
+                    </li>
+                    <li>
+                        <router-link to="/reports" class="menu-item">
+                            <i class="pi pi-file-pdf"></i>
+                            <span v-if="!appStore.sidebarCollapsed">{{ $t('reports.board') }}</span>
+                        </router-link>
+                    </li>
+
                     <!-- Workflow -->
                     <li class="menu-section" v-if="!appStore.sidebarCollapsed">
                         {{ $t('workflow.title') || 'Workflow' }}

@@ -231,6 +231,8 @@ class ControlImplementation(models.Model):
     # Gap information
     gap_description = models.TextField(_('Gap Description'), blank=True)
     gap_description_ar = models.TextField(_('وصف الفجوة'), blank=True)
+    # Statement of Applicability: why a control is excluded (mandatory when status is Not Applicable)
+    applicability_justification = models.TextField(_('Applicability Justification'), blank=True)
     remediation_plan = models.TextField(_('Remediation Plan'), blank=True)
     remediation_plan_ar = models.TextField(_('خطة المعالجة'), blank=True)
     target_date = models.DateField(_('Target Implementation Date'), null=True, blank=True)

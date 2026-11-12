@@ -1,0 +1,33 @@
+/* Shared styles for GRC module pages (stat tiles, detail grids, RAG helpers) */
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: .75rem; margin-bottom: 1.25rem; }
+.stat-card { background: var(--p-surface-0, #fff); border: 1px solid var(--p-surface-200, #e5e7eb); border-left: 5px solid var(--p-surface-400); border-radius: 8px; padding: .9rem 1rem; display: flex; flex-direction: column; gap: .15rem; }
+:dir(rtl) .stat-card { border-left: 1px solid var(--p-surface-200, #e5e7eb); border-right: 5px solid var(--p-surface-400); }
+.stat-card.critical, .stat-card.red, .stat-card.breach { border-color: #dc2626; }
+.stat-card.high, .stat-card.amber, .stat-card.tolerance { border-color: #ea580c; }
+.stat-card.medium, .stat-card.warn { border-color: #d97706; }
+.stat-card.low, .stat-card.green, .stat-card.within, .stat-card.covered { border-color: #059669; }
+.stat-card.info { border-color: #1e40af; }
+.stat-value { font-size: 1.6rem; font-weight: 700; line-height: 1.1; }
+.stat-label { font-size: .8rem; color: var(--p-text-muted-color); }
+.dark-mode .stat-card { background: var(--p-surface-900); border-color: var(--p-surface-700); }
+
+.detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .9rem 1.25rem; }
+.detail-grid > div > b { display: block; font-size: .78rem; color: var(--p-text-muted-color); margin-bottom: .15rem; text-transform: uppercase; letter-spacing: .02em; }
+.detail-grid .full { grid-column: 1 / -1; }
+.text-muted { color: var(--p-text-muted-color); font-size: .85rem; }
+.form-field { display: flex; flex-direction: column; gap: .35rem; margin-bottom: .9rem; }
+.form-field label { font-weight: 600; font-size: .85rem; }
+
+.rag { display: inline-block; min-width: 2.2rem; text-align: center; padding: .15rem .5rem; border-radius: 999px; color: #fff; font-weight: 600; font-size: .8rem; }
+.rag.green, .rag.within, .rag.covered, .rag.pass { background: #059669; }
+.rag.amber, .rag.tolerance, .rag.untested, .rag.partial, .rag.pass_with_observations { background: #d97706; }
+.rag.red, .rag.breach, .rag.gap, .rag.no_dr_plan, .rag.unproven, .rag.fail { background: #dc2626; }
+.rag.no_data, .rag.no_bia, .rag.no_dependencies { background: #6b7280; }
+
+.risk-score { display: inline-block; min-width: 2.4rem; text-align: center; padding: .2rem .5rem; border-radius: 6px; color: #fff; font-weight: 700; }
+.risk-score.critical { background: #dc2626; } .risk-score.high { background: #ea580c; }
+.risk-score.medium { background: #d97706; } .risk-score.low { background: #059669; }
+
+.issue-list { margin: .25rem 0 0; padding-left: 1.1rem; font-size: .85rem; }
+.issue-list li { margin-bottom: .15rem; }
+@media (max-width: 720px) { .detail-grid { grid-template-columns: 1fr; } }

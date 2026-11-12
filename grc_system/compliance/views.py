@@ -104,6 +104,31 @@ class ControlImplementationViewSet(AuditedModelViewSet):
         }
         return Response(stats)
 
+    @action(detail=False, methods=['get'], url_path='statement_of_applicability')
+    def statement_of_applicability(self, request):
+        """
+        ISO 27001 Statement of Applicability for one framework:
+        every control, whether it applies, the justification for exclusions,
+        implementation status, maturity, owner and evidence count.
+        GET ?organization=<id>&framework=<id>[&output=pdf]
+        """
+        from django.http import HttpResponse
+        from .models import Control, Evidence
+        from .utils import build_soa_rows
+
+        org_id = request.query_params.get('organization')
+        framework_id = request.query_params.get('framework')
+        if not org_id or not framework_id:
+            return Response({'error': 'organization and framework parameters are required'}, status=400)
+        data = build_soa_rows(org_id, framework_id)
+        if request.query_params.get('output') == 'pdf':
+            from dashboard.reports import soa_pdf
+            pdf = soa_pdf(data)
+            resp = HttpResponse(pdf, content_type='application/pdf')
+            resp['Content-Disposition'] = f'attachment; filename="SoA-{data["framework"]["code"]}.pdf"'
+            return resp
+        return Response(data)
+
 
 class AuditViewSet(AuditedModelViewSet):
     queryset = Audit.objects.select_related(
@@ -270,11 +295,22 @@ class GapAssessmentViewSet(AuditedModelViewSet):
     
     @action(detail=True, methods=['post'])
     def calculate_score(self, request, pk=None):
-        """Recalculate compliance score."""
+        """Recalculate all gap-assessment figures from the current control implementation status."""
+        from core.audit import log_action
+        from .utils import auto_calculate_gap_assessment
         assessment = self.get_object()
-        assessment.compliance_score = assessment.calculate_compliance_score()
-        assessment.save()
+        if assessment.status == 'approved':
+            return Response({'error': 'An approved assessment is frozen; create a new assessment instead'}, status=400)
+        result = auto_calculate_gap_assessment(assessment)
+        log_action(request.user, 'update', assessment, changes={'recalculated': result}, request=request)
         return Response(GapAssessmentSerializer(assessment).data)
+
+    @action(detail=True, methods=['get'])
+    def gaps(self, request, pk=None):
+        """The controls that are not (fully) implemented for this assessment's framework."""
+        from .utils import identify_gaps
+        assessment = self.get_object()
+        return Response(identify_gaps(assessment.organization, assessment.framework))
     
     @action(detail=True, methods=['post'])
     def refresh_from_implementations(self, request, pk=None):

@@ -252,14 +252,60 @@ class GeneratedReportViewSet(AuditedModelViewSet):
             organization_id=org_id,
             template=template,
             title=f"{template.name} - {timezone.now().strftime('%Y-%m-%d')}",
-            status='pending',
+            status='generating',
             parameters=parameters,
             generated_by=request.user,
         )
-        
-        # TODO: Queue Celery task for actual generation
-        
+        self._render(report, template.report_type)
         return Response(GeneratedReportSerializer(report).data, status=201)
+
+    REPORT_TYPES = {'executive': 'executive', 'risk': 'risk', 'compliance': 'compliance', 'bcm': 'bcm', 'gap': 'compliance'}
+
+    def _render(self, report, report_type):
+        import time
+        from django.core.files.base import ContentFile
+        from .reports import build_report
+        started = time.time()
+        try:
+            pdf = build_report(report.organization, self.REPORT_TYPES.get(report_type, 'executive'))
+            report.file.save(f"{report_type}-report-{timezone.now():%Y%m%d-%H%M%S}.pdf", ContentFile(pdf), save=False)
+            report.file_size = len(pdf)
+            report.status = 'completed'
+            report.generated_at = timezone.now()
+        except Exception as exc:  # pragma: no cover
+            report.status = 'failed'
+            report.error_message = str(exc)
+        report.generation_time_seconds = round(time.time() - started, 2)
+        report.save()
+        return report
+
+    @action(detail=False, methods=['get'], url_path='board-pack')
+    def board_pack(self, request):
+        """
+        Download a board-ready PDF and keep a copy in the report archive.
+        GET ?organization=<id>&type=executive|risk|compliance|bcm
+        """
+        from django.http import HttpResponse
+        from core.models import Organization
+        from core.audit import log_action
+        org_id = request.query_params.get('organization')
+        report_type = request.query_params.get('type', 'executive')
+        if report_type not in self.REPORT_TYPES:
+            return Response({'error': f'type must be one of {list(self.REPORT_TYPES)}'}, status=400)
+        organization = Organization.objects.filter(pk=org_id).first()
+        if not organization:
+            return Response({'error': 'organization is required'}, status=400)
+        report = GeneratedReport.objects.create(
+            organization=organization, title=f"{report_type.title()} report - {timezone.localdate():%Y-%m-%d}",
+            status='generating', parameters={'type': report_type}, generated_by=request.user)
+        self._render(report, report_type)
+        if report.status != 'completed':
+            return Response({'error': report.error_message}, status=500)
+        log_action(request.user, 'export', report, changes={'type': report_type}, request=request)
+        report.file.open('rb')
+        resp = HttpResponse(report.file.read(), content_type='application/pdf')
+        resp['Content-Disposition'] = f'attachment; filename="{report_type}-report-{timezone.localdate()}.pdf"'
+        return resp
 
 
 class KPIViewSet(AuditedModelViewSet):

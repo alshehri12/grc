@@ -11,7 +11,8 @@
     "compliance": "الامتثال",
     "settings": "الإعدادات",
     "profile": "الملف الشخصي",
-    "logout": "تسجيل الخروج"
+    "logout": "تسجيل الخروج",
+    "reports": "التقارير"
   },
   "governance": {
     "title": "الحوكمة",
@@ -43,7 +44,11 @@
     "impact": "الأثر",
     "riskType": "نوع الخطر",
     "inherentRisk": "الخطر المتأصل",
-    "residualRisk": "الخطر المتبقي"
+    "residualRisk": "الخطر المتبقي",
+    "treatments": "خطط المعالجة",
+    "acceptances": "قبول المخاطر",
+    "appetite": "شهية المخاطر",
+    "kris": "مؤشرات المخاطر الرئيسية"
   },
   "bcm": {
     "title": "استمرارية الأعمال",
@@ -70,15 +75,17 @@
     "criticality": "الأهمية",
     "newTest": "اختبار جديد",
     "editTest": "تعديل الاختبار",
-    "testDetails": "تفاصيل الاختبار"
+    "testDetails": "تفاصيل الاختبار",
+    "incidents": "الحوادث والأزمات",
+    "capability": "قدرة التعافي"
   },
   "compliance": {
     "title": "الامتثال",
     "controls": "الضوابط",
     "audits": "التدقيق",
-    "findings": "الملاحظات",
+    "findings": "الملاحظات والإجراءات التصحيحية",
     "evidence": "الأدلة",
-    "gap": "تحليل الفجوات",
+    "gap": "تقييم الفجوات وبيان قابلية التطبيق",
     "newControl": "ضابط جديد",
     "editControl": "تعديل الضابط",
     "controlDetails": "تفاصيل الضابط",
@@ -225,5 +232,9 @@
     "completionNotes": "ملاحظات الإكمال",
     "rejectionReason": "سبب الرفض",
     "approvalComments": "تعليقات الاعتماد"
+  },
+  "reports": {
+    "title": "التقارير",
+    "board": "تقارير مجلس الإدارة"
   }
 }

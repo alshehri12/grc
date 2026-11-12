@@ -59,6 +59,41 @@
             </div>
         </div>
         
+        <!-- KPI Cards Row 1b - Governance health (appetite, KRIs, recovery capability, exercises) -->
+        <div class="kpi-grid">
+            <div class="kpi-card risk clickable" @click="$router.push('/risk/appetite')">
+                <div class="kpi-icon"><i class="pi pi-sliders-h"></i></div>
+                <div class="kpi-content">
+                    <span class="kpi-value">{{ summary.risks?.outside_appetite ?? 0 }}</span>
+                    <span class="kpi-label">Risks outside appetite</span>
+                </div>
+                <div class="kpi-badge critical" v-if="summary.risks?.appetite?.breach > 0">{{ summary.risks.appetite.breach }} above tolerance</div>
+            </div>
+            <div class="kpi-card findings clickable" @click="$router.push('/risk/kris')">
+                <div class="kpi-icon"><i class="pi pi-chart-line"></i></div>
+                <div class="kpi-content">
+                    <span class="kpi-value">{{ summary.risks?.kris?.red ?? 0 }}</span>
+                    <span class="kpi-label">KRIs in red</span>
+                </div>
+                <div class="kpi-badge warning" v-if="summary.risks?.kris?.measurement_overdue > 0">{{ summary.risks.kris.measurement_overdue }} measurement overdue</div>
+            </div>
+            <div class="kpi-card bcm clickable" @click="$router.push('/bcm/capability')">
+                <div class="kpi-icon"><i class="pi pi-compass"></i></div>
+                <div class="kpi-content">
+                    <span class="kpi-value">{{ summary.bcm?.capability ? summary.bcm.capability.covered + ' / ' + summary.bcm.capability.total : '-' }}</span>
+                    <span class="kpi-label">Critical functions recoverable & proven</span>
+                </div>
+                <div class="kpi-badge critical" v-if="summary.bcm?.capability?.critical_at_risk > 0">{{ summary.bcm.capability.critical_at_risk }} at risk</div>
+            </div>
+            <div class="kpi-card drp clickable" @click="$router.push('/bcm/tests')">
+                <div class="kpi-icon"><i class="pi pi-calendar-times"></i></div>
+                <div class="kpi-content">
+                    <span class="kpi-value">{{ summary.bcm?.plans_test_overdue ?? 0 }}</span>
+                    <span class="kpi-label">Plans with overdue exercise</span>
+                </div>
+            </div>
+        </div>
+
         <!-- KPI Cards Row 2 - BCM -->
         <div class="kpi-grid">
             <div class="kpi-card bcm">
@@ -516,4 +551,9 @@ onMounted(async () => {
 .dark-mode .summary-item {
     background: var(--p-surface-700);
 }
+</style>
+
+<style scoped>
+.kpi-card.clickable { cursor: pointer; transition: transform .12s ease, box-shadow .12s ease; }
+.kpi-card.clickable:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0, 0, 0, .08); }
 </style>

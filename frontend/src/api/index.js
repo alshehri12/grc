@@ -124,13 +124,50 @@ export const riskApi = {
         update: (id, data) => api.put(`/risk/risks/${id}/`, data),
         delete: (id) => api.delete(`/risk/risks/${id}/`),
         matrix: (orgId) => api.get('/risk/risks/matrix/', { params: { organization: orgId } }),
-        statistics: (orgId) => api.get('/risk/risks/statistics/', { params: { organization: orgId } })
+        statistics: (orgId) => api.get('/risk/risks/statistics/', { params: { organization: orgId } }),
+        matrixConfig: (orgId) => api.get('/risk/risks/matrix_config/', { params: { organization: orgId } }),
+        analysis: (id) => api.get(`/risk/risks/${id}/analysis/`),
+        calculateResidual: (id) => api.post(`/risk/risks/${id}/calculate_residual/`)
     },
     assets: {
         list: (params) => api.get('/risk/assets/', { params })
     },
     categories: {
         list: () => api.get('/risk/risk-categories/')
+    },
+    treatments: {
+        list: (params) => api.get('/risk/treatments/', { params }),
+        get: (id) => api.get(`/risk/treatments/${id}/`),
+        create: (data) => api.post('/risk/treatments/', data),
+        update: (id, data) => api.put(`/risk/treatments/${id}/`, data),
+        delete: (id) => api.delete(`/risk/treatments/${id}/`),
+        updateProgress: (id, progress, notes) => api.post(`/risk/treatments/${id}/update_progress/`, { progress, notes })
+    },
+    acceptances: {
+        list: (params) => api.get('/risk/acceptances/', { params }),
+        get: (id) => api.get(`/risk/acceptances/${id}/`),
+        create: (data) => api.post('/risk/acceptances/', data),
+        update: (id, data) => api.put(`/risk/acceptances/${id}/`, data),
+        delete: (id) => api.delete(`/risk/acceptances/${id}/`),
+        approve: (id, comments) => api.post(`/risk/acceptances/${id}/approve/`, { comments }),
+        reject: (id, comments) => api.post(`/risk/acceptances/${id}/reject/`, { comments })
+    },
+    appetites: {
+        list: (params) => api.get('/risk/appetites/', { params }),
+        get: (id) => api.get(`/risk/appetites/${id}/`),
+        create: (data) => api.post('/risk/appetites/', data),
+        update: (id, data) => api.put(`/risk/appetites/${id}/`, data),
+        delete: (id) => api.delete(`/risk/appetites/${id}/`),
+        exposure: (orgId) => api.get('/risk/appetites/exposure/', { params: { organization: orgId } })
+    },
+    kris: {
+        list: (params) => api.get('/risk/kris/', { params }),
+        get: (id) => api.get(`/risk/kris/${id}/`),
+        create: (data) => api.post('/risk/kris/', data),
+        update: (id, data) => api.put(`/risk/kris/${id}/`, data),
+        delete: (id) => api.delete(`/risk/kris/${id}/`),
+        measure: (id, data) => api.post(`/risk/kris/${id}/measure/`, data),
+        dashboard: (orgId) => api.get('/risk/kris/dashboard/', { params: { organization: orgId } })
     }
 }
 
@@ -141,7 +178,9 @@ export const bcmApi = {
         create: (data) => api.post('/bcm/functions/', data),
         update: (id, data) => api.put(`/bcm/functions/${id}/`, data),
         delete: (id) => api.delete(`/bcm/functions/${id}/`),
-        hierarchy: (orgId) => api.get('/bcm/functions/hierarchy/', { params: { organization: orgId } })
+        hierarchy: (orgId) => api.get('/bcm/functions/hierarchy/', { params: { organization: orgId } }),
+        capabilityAnalysis: (orgId, criticality) => api.get('/bcm/functions/capability_analysis/', { params: { organization: orgId, criticality } }),
+        threatProfile: (id) => api.get(`/bcm/functions/${id}/threat_profile/`)
     },
     plans: {
         list: (params) => api.get('/bcm/bc-plans/', { params }),
@@ -169,14 +208,21 @@ export const bcmApi = {
         get: (id) => api.get(`/bcm/tests/${id}/`),
         create: (data) => api.post('/bcm/tests/', data),
         update: (id, data) => api.put(`/bcm/tests/${id}/`, data),
-        delete: (id) => api.delete(`/bcm/tests/${id}/`)
+        delete: (id) => api.delete(`/bcm/tests/${id}/`),
+        start: (id) => api.post(`/bcm/tests/${id}/start/`),
+        complete: (id, data) => api.post(`/bcm/tests/${id}/complete/`, data)
     },
     incidents: {
         list: (params) => api.get('/bcm/incidents/', { params }),
         get: (id) => api.get(`/bcm/incidents/${id}/`),
         create: (data) => api.post('/bcm/incidents/', data),
         update: (id, data) => api.put(`/bcm/incidents/${id}/`, data),
-        delete: (id) => api.delete(`/bcm/incidents/${id}/`)
+        delete: (id) => api.delete(`/bcm/incidents/${id}/`),
+        declareCrisis: (id) => api.post(`/bcm/incidents/${id}/declare_crisis/`),
+        resolve: (id, lessons_learned) => api.post(`/bcm/incidents/${id}/resolve/`, { lessons_learned })
+    },
+    crisisTeams: {
+        list: (params) => api.get('/bcm/crisis-teams/', { params })
     }
 }
 
@@ -239,12 +285,28 @@ export const complianceApi = {
         get: (id) => api.get(`/compliance/gap-assessments/${id}/`),
         create: (data) => api.post('/compliance/gap-assessments/', data),
         update: (id, data) => api.put(`/compliance/gap-assessments/${id}/`, data),
-        delete: (id) => api.delete(`/compliance/gap-assessments/${id}/`)
-    }
+        delete: (id) => api.delete(`/compliance/gap-assessments/${id}/`),
+        recalculate: (id) => api.post(`/compliance/gap-assessments/${id}/calculate_score/`),
+        gaps: (id) => api.get(`/compliance/gap-assessments/${id}/gaps/`)
+    },
+    correctiveActions: {
+        list: (params) => api.get('/compliance/corrective-actions/', { params }),
+        get: (id) => api.get(`/compliance/corrective-actions/${id}/`),
+        create: (data) => api.post('/compliance/corrective-actions/', data),
+        update: (id, data) => api.put(`/compliance/corrective-actions/${id}/`, data),
+        delete: (id) => api.delete(`/compliance/corrective-actions/${id}/`),
+        verify: (id, notes) => api.post(`/compliance/corrective-actions/${id}/verify/`, { notes })
+    },
+    soa: (orgId, frameworkId) => api.get('/compliance/implementations/statement_of_applicability/', { params: { organization: orgId, framework: frameworkId } }),
+    soaPdf: (orgId, frameworkId) => api.get('/compliance/implementations/statement_of_applicability/', { params: { organization: orgId, framework: frameworkId, output: 'pdf' }, responseType: 'blob' })
 }
 
 export const dashboardApi = {
     executiveSummary: (orgId) => api.get('/dashboard/dashboards/executive_summary/', { params: { organization: orgId } }),
+    reports: {
+        list: (params) => api.get('/dashboard/reports/', { params }),
+        boardPack: (orgId, type) => api.get('/dashboard/reports/board-pack/', { params: { organization: orgId, type }, responseType: 'blob' })
+    },
     myDashboards: () => api.get('/dashboard/dashboards/my_dashboards/'),
     kpis: {
         latest: (orgId) => api.get('/dashboard/kpi-values/latest/', { params: { organization: orgId } })

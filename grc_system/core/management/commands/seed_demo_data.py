@@ -843,6 +843,7 @@ class Command(BaseCommand):
             gap = st in ('partially_implemented', 'in_progress', 'planned', 'not_implemented')
             self.impls[cid] = ControlImplementation.objects.create(
                 organization=self.org, control=ctrl, status=st, maturity_level=self.rng.randint(lo, hi),
+                applicability_justification=(f'{ctrl.title} is excluded: the organization does not operate the underlying process or technology in scope.' if st == 'not_applicable' else ''),
                 implementation_details=(f'{ctrl.title} is implemented through documented procedures and technical controls.'
                                         if st != 'not_applicable' else 'Not applicable to current business scope.'),
                 owner=self.u(owner), department=self.dept(dcode),

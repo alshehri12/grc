@@ -156,3 +156,28 @@ As a result, a risk owner **can't run the treatment cycle** and a BCM manager **
 ## Bottom line
 
 After Phases 1–2, the app is a credible internal tool for compliance and risk registers. To truly **automate** risk and BCM work, comparable to commercial platforms such as Archer, ServiceNow IRM or Fusion, Phase 3 is required, above all the BCM capability analysis (B1).
+
+---
+
+## Implementation status (updated 2026-11-12)
+
+All four phases of the roadmap have been implemented on the `demo-data-and-remote-access` branch. Automated tests: 61.
+
+| # | Roadmap item | Status | Where |
+|---|---|---|---|
+| 1 | Audit trail for every change and approval (G1) | Done | `core/audit.py`, all viewsets, `/api/core/audit-logs/` |
+| 2 | Permissions and maker-checker (G2) | Done | `core/permissions.py`, `workflow/services.py`, `workflow/content.py` |
+| 3 | One configurable risk matrix (R1) | Done | `risk/utils.py`, Setting `risk_matrix_thresholds`, `/risk/risks/matrix_config/` |
+| 4 | Visibility of published policies and documents (G3) | Done | `governance/views.py` |
+| 5 | Automation switched on: reminders, escalations, overdue flags, expiries, e-mail | Done | `core/automation.py`, `manage.py run_automation`, `CELERY_BEAT_SCHEDULE` |
+| 6 | Residual risk recalculated from control effectiveness (R2) | Done | `risk/utils.py`, signals, `Risk.residual_auto` |
+| 7 | Risk appetite per category and KRIs (R3, R4) | Done | `RiskAppetite`, `KeyRiskIndicator`, `/risk/appetites/`, `/risk/kris/` |
+| 8 | BCM capability analysis: BIA needs vs DR capability vs exercise proof (B1, B2) | Done | `bcm/utils.capability_analysis`, `/bcm/functions/capability_analysis/` |
+| 9 | Exercise schedule per plan with reminders (B4) | Done | `test_frequency_months`, `next_test_date`, review-reminder job |
+| 10 | Incidents linked to risks with automatic re-assessment tasks; function threat profile (B3) | Done | `CrisisIncident.related_risks`, `BusinessFunction.related_risks` |
+| 11 | Screens for treatments, acceptances, appetite, KRIs, incidents, capability, findings/CARs, gap assessments | Done | `frontend/src/views/...` (shared `CrudPage.vue`) |
+| 12 | Board-ready PDF reports and Statement of Applicability with mandatory N/A justification (C2) | Done | `dashboard/reports.py`, `/dashboard/reports/board-pack/`, `/compliance/implementations/statement_of_applicability/` |
+| R5 | Approval is no longer treated as assessment | Done | approved risks return to `identified`; assessment is a separate record |
+| C1 | Evidence reuse across mapped controls | **Open** | mappings exist; evidence still counts for one control only |
+
+Remaining recommendations: evidence reuse across framework mappings (C1), per-time-point impact matrix in the BIA (the current model rates impact per category at the MTPD horizon), and a production hardening pass (secret key, `DEBUG`, PostgreSQL, HTTPS) before any internet exposure.
